@@ -129,8 +129,9 @@ const keys = {
     a: false,
     s: false,
     d: false,
-    Space: false
-};
+    Space: false,
+    t:false
+}
 
 window.addEventListener('keydown', e => {
     if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
@@ -155,9 +156,9 @@ window.addEventListener('keyup', e => {
 window.addEventListener('click',(e)=>{
    const x = e.x
    const y = e.y
-   
     player.teleport(x,y);
 })
+
 
 //include stamina and remove jump limiters and have jump cos that as well as attacks, add mana too and health
 // Animation states definition
@@ -337,6 +338,11 @@ class Player {
             }
         }
 
+        if(keys.t){
+           this.attack()
+            
+        }
+
         // Prevent going off screen horizontally
         this.x = Math.max(0, Math.min(canvas.width - playerWidth * this.scale, this.x));
         // Prevent going above top of canvas
@@ -353,6 +359,9 @@ class Player {
         
         }
         }
+    attack(){
+       fireball.playAnimation(ctx, 0, 100, 100);
+    }
     getBoundingBox() {
             return {
                 x: this.x,
@@ -403,7 +412,7 @@ function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
      
     
-   targetCharacter(block, player);
+//    targetCharacter(block, player);
 
     player.update();
     player.draw();
@@ -414,6 +423,12 @@ function animate() {
     playerStamina.update();
     playerStamina.draw()
 
+    playerMana.update();
+    playerMana.draw()
+
+    fireball.update(block.x,block.y);
+    fireball.draw(ctx)
+   
     block.update();
     block.draw()
 
@@ -494,12 +509,14 @@ class HealthBar {
 
 const playerHealth = new HealthBar(20, 20, 200, 20, 100,'red');
 const playerStamina = new HealthBar(20, 40, 400, 20, 500,'green');
+const playerMana = new HealthBar(20, 60, 600, 20, 800,'blue');
 
 
-class Attacks{
+
+class Boss{
     constructor(){
-        this.x=(Math.random()*canvasWidth1)+ 200;
-        this.y=600;
+        this.x=(Math.random()*canvasWidth1);
+        this.y=(Math.random()*canvasHeight1);
         this.width=50;
         this.height=50;
         this.damage=5;
@@ -529,7 +546,7 @@ class Attacks{
     }
 }
 
-const block = new Attacks();
+const block = new Boss();
 
 
 function isColliding(rect1, rect2) {
@@ -603,8 +620,179 @@ function targetCharacter(block, player) {
     if (dist > 1) {
         block.x += (dx / dist) * speed;
         block.y += (dy / dist) * speed;
+    //     playerBox.x=null;
+    // playerBox.y=null
     }else{
         console.log("im here")
         playerHealth.decreaseStat(0.1)
     }
+    
 }
+
+
+const canvasAttacks = document.getElementById('canvas4');
+const ctxAttacks = canvasAttacks.getContext('2d');
+canvas.width = 1400;
+canvas.height = 700;
+
+const attackLibrary = [
+    { id: 0, name: "Melee", type: "damageDealer", damage: 5, range: 500, castDuration: 0, manaCost: 0, cooldown: 0, availability: true, imageSrc:'background.jpg', framesX:8, imgWidth:576, imgHeight:72 },
+    { id: 1, name: "Fireball", type: "damageDealer", damage: 20, range: 15, castDuration: 1.5, manaCost: 10, cooldown: 3, availability: true },
+    { id: 2, name: "Ice Spike", type: "damageDealer", damage: 15, range: 12, castDuration: 1, manaCost: 8, cooldown: 2.5, availability: true },
+    { id: 3, name: "Lightning Bolt", type: "damageDealer", damage: 25, range: 20, castDuration: 2, manaCost: 15, cooldown: 4, availability: true },
+    { id: 4, name: "Heal", type: "support", damage: -20, range: 10, castDuration: 1.5, manaCost: 12, cooldown: 5, availability: true },
+    { id: 5, name: "Shield", type: "defense", damage: 0, range: 0, castDuration: 0.5, manaCost: 5, cooldown: 3, availability: true },
+    { id: 6, name: "Poison Dart", type: "damageDealer", damage: 12, range: 10, castDuration: 1, manaCost: 6, cooldown: 2, availability: true },
+    { id: 7, name: "Earthquake", type: "damageDealer", damage: 30, range: 8, castDuration: 3, manaCost: 20, cooldown: 6, availability: true },
+    { id: 8, name: "Wind Slash", type: "damageDealer", damage: 18, range: 14, castDuration: 1, manaCost: 8, cooldown: 2, availability: true },
+    { id: 9, name: "Fire Shield", type: "defense", damage: 0, range: 0, castDuration: 0.5, manaCost: 10, cooldown: 4, availability: true },
+    { id: 10, name: "Arcane Blast", type: "damageDealer", damage: 22, range: 16, castDuration: 1.2, manaCost: 12, cooldown: 3.5, availability: true },
+    { id: 11, name: "Healing Wave", type: "support", damage: -15, range: 12, castDuration: 1.8, manaCost: 10, cooldown: 4, availability: true },
+    { id: 12, name: "Shadow Strike", type: "damageDealer", damage: 28, range: 10, castDuration: 1.5, manaCost: 18, cooldown: 5, availability: true },
+    { id: 13, name: "Thunderstorm", type: "damageDealer", damage: 35, range: 20, castDuration: 2.5, manaCost: 25, cooldown: 7, availability: true },
+    { id: 14, name: "Holy Light", type: "support", damage: -25, range: 15, castDuration: 2, manaCost: 20, cooldown: 6, availability: true }
+];
+
+class Attack {
+  constructor({id, name, type, damage, range, castDuration, manaCost, cooldown, availability, imageSrc, framesX=1, imgWidth=0, imgHeight=0}) {
+    this.id = id;
+    this.name = name;
+    this.type = type;
+    this.damage = damage;
+    this.range = range;
+    this.castDuration = castDuration;
+    this.manaCost = manaCost;
+    this.cooldown = cooldown;
+    this.availability = availability;
+    
+    // Position and movement
+    this.targetX = null;
+    this.targetY = null;
+    this.x = player.x;
+    this.y = player.y;
+    this.acceleration = 1;
+    this.vx = 0;
+    this.vy = 0; // This was missing!
+    
+    // Size for drawing (you need to define these)
+    this.width = imgWidth || 32;  // Default size if not specified
+    this.height = imgHeight || 32;
+
+    // Animation stuff
+    this.image = new Image();
+    this.imageLoaded = false;
+    this.imageError = false;
+    this.framesX = framesX;
+    this.imgWidth = imgWidth;
+    this.imgHeight = imgHeight;
+
+    // Set up image loading handlers
+    this.image.onload = () => {
+      this.imageLoaded = true;
+      console.log(`Attack image loaded: ${this.name}`);
+    };
+
+    this.image.onerror = (e) => {
+      this.imageError = true;
+      console.error(`Failed to load attack image for ${this.name}:`, imageSrc, e);
+    };
+
+    // Set source after handlers are set up
+    if (imageSrc) {
+      this.image.src = imageSrc;
+      
+    }
+
+    // Animation state
+    this.frameIndex = 0;
+    this.frameElapsed = 0;
+    this.frameHold = 5;
+  }
+
+  update(x, y) {
+    this.targetX = x - (playerWidth) / 2;
+    this.targetY = y - (playerHeight) / 2;
+    
+
+    if (this.targetX !== null && this.targetY !== null) {
+      let dx = this.targetX - this.x;
+      let dy = this.targetY - this.y;
+      let dist = Math.sqrt((dx * dx) + (dy * dy));
+
+      if (dist > 1) { // still far from destination
+        let dirX = dx / dist;
+        let dirY = dy / dist;
+
+        // Apply acceleration
+        this.vx += dirX * this.acceleration;
+        this.vy += dirY * this.acceleration;
+
+        // Update position
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // console.log("Moving:", "dx:", dx, "dy:", dy, "dist:", dist, "dirX:", dirX, "dirY:", dirY, this.vx, this.vy);
+      } else {
+        // Reached destination
+        this.vx = 0;
+        this.vy = 0;
+        this.x = this.targetX;
+        this.y = this.targetY;
+
+        // console.log("Arrived at target:", this.targetX, this.targetY);
+
+        this.targetX = null;
+        this.targetY = null;
+      }
+    }
+
+    // Update animation frames
+    this.frameElapsed++;
+    if (this.frameElapsed >= this.frameHold) {
+      this.frameIndex++;
+      this.frameElapsed = 0;
+
+      if (this.frameIndex >= this.framesX) {
+        this.frameIndex = 0; // loop animation
+      }
+    }
+  }
+
+  draw(ctx) { // Added ctx parameter
+    // Try to draw sprite first if available
+
+    
+    // if (this.imageLoaded && !this.imageError && this.imgWidth > 0 && this.imgHeight > 0) {
+    //   const frameWidth = this.imgWidth / this.framesX;
+      
+    //   try {
+    //     ctx.drawImage(
+    //       this.image,
+    //       this.frameIndex * frameWidth, // source X
+    //       0,                            // source Y
+    //       frameWidth,                   // source width
+    //       this.imgHeight,               // source height
+    //       this.x,                       // destination X
+    //       this.y,                       // destination Y
+    //       frameWidth,                   // draw width
+    //       this.imgHeight                // draw height
+    //     );
+    //     return; // Successfully drew sprite, exit
+    //   } catch (error) {
+    //     console.error(`Failed to draw sprite for ${this.name}:`, error);
+    //   }
+    // }
+
+    // // Fallback: draw grey rectangle
+    
+    ctx.fillStyle = 'green';
+    ctx.fillRect(this.x, this.y, 20, 20);
+  }
+}
+// Auto-convert whole library into Attack instances
+const attacks = attackLibrary.map(data => new Attack(data));
+
+// Example usage:
+const fireball = attacks[0];  // Fireball
+
+

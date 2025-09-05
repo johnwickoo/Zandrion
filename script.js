@@ -4,6 +4,7 @@ const canvasWidth1 = canvasBackground.width = 1400;
 const canvasHeight1 = canvasBackground.height = 700;
 
 let gameSpeed = 15;
+let lastTime = performance.now();
 
 const backgroundLayer1 = new Image();
 backgroundLayer1.src = 'Resources/cracks1.png';
@@ -118,7 +119,7 @@ const playerWidth = 69;
 const playerHeight = 44;
 let gameFrames = 0;
 const staggerFrames = 5; // controls animation speed
-const gravity=0.8
+const gravity=2000;
 // Key states
 const keys = {
     ArrowUp: false,
@@ -200,35 +201,45 @@ class Player {
         this.playerWidth=playerWidth*this.scale;
         this.playerHeight=playerHeight*this.scale
         this.state = "idle";
-        this.speed = 15;
+        this.speed = 600;
         this.speedY = 0;
         this.gravity = gravity;  // tweak this for jump feel
-        this.jumpStrength = 15;
+        this.jumpStrength = 800;
         this.isOnGround = false;
         this.groundY = canvas.height - playerHeight * this.scale*1.3;
         this.facingLeft=false;
         this.facingRight=true;
         this.targetX=null;
         this.targetY=null;
-        this.acceleration=30;
+        this.acceleration=30000;
         this.maxSpeed = 25;
         this.vx=0;
         this.vy=0;
        
-
+        // Combat & stats
+        this.name = "Player";
+        this.health = 100;
+        this.maxHealth = 100;
+        this.armor = 10;                // physical armor
+        this.magicResistance = 5;       // magical resistance
+        this.poisonResistance = 2;      // poison resistance
+        this.statusEffects = [];
+        this.canMove = true; 
 
     }
 
-    update() {
+    update(deltaTime) {
+       
         
-        // Horizontal movement
+        if(this.canMove){
+            // Horizontal movement
         if (keys.ArrowRight || keys.d) {
-            this.x += this.speed;
+            this.x += this.speed* deltaTime;
             if (this.isOnGround) this.state = "run";
             this.facingLeft = false;
             this.facingRight=true
         } else if (keys.ArrowLeft || keys.a) {
-            this.x -= this.speed;
+            this.x -= this.speed * deltaTime;
             this.facingLeft = true;
             this.facingRight=false
             if (this.isOnGround) this.state = "run";
@@ -262,7 +273,7 @@ class Player {
                 playerStamina.decreaseStat(10);
             }
     jumpPressed = true;
-}
+    }
 
 
         if (!keys.Space) {
@@ -271,16 +282,13 @@ class Player {
 
                 // Apply gravity
         if (this.y < canvas.height * 0.2) {
-            this.gravity = 10;
-            this.speedY += this.gravity;
-            this.y += this.speedY;
+            this.gravity = 20000; 
         } else {
             this.gravity = gravity;
-            this.speedY += this.gravity;
-            this.y += this.speedY;
         }
         
-       
+       this.speedY += this.gravity* deltaTime;
+        this.y += this.speedY* deltaTime;
        
         // Landing on ground
         if (this.y >= this.groundY) {
@@ -314,12 +322,12 @@ class Player {
                 let dirY = dy / dist;
 
                 // Apply acceleration 
-                this.vx += dirX * this.acceleration;  
-                this.vy += dirY * this.acceleration;  
+                this.vx += dirX * this.acceleration * deltaTime;  
+                this.vy += dirY * this.acceleration * deltaTime;  
 
                 // Update position
-                this.x += this.vx;
-                this.y += this.vy;
+                this.x += this.vx * deltaTime;
+                this.y += this.vy * deltaTime;
                  
 
                 console.log("Moving:", "dx:",dx, "dy:",dy, "dist:",dist,"dirX:",dirX,"dirY:",dirY,this.vx);
@@ -338,7 +346,7 @@ class Player {
             }
         }
 
-        if(keys.t){
+        if(keys.t && this.canMove){
            this.attack()
             
         }
@@ -347,6 +355,10 @@ class Player {
         this.x = Math.max(0, Math.min(canvas.width - playerWidth * this.scale, this.x));
         // Prevent going above top of canvas
         this.y = Math.max(0, this.y);
+
+        updateStatusEffects(this, deltaTime);
+        }
+        
     }
 
     teleport(x,y){
@@ -407,14 +419,18 @@ class Player {
 
 const player = new Player(200, 550, 3);
 
-function animate() {
+function gameLoop(currentTime) {
+
+    const deltaTime = (currentTime - lastTime) / 1000; 
+    lastTime = currentTime;
+
+
     ctx.save()
     ctx.clearRect(0, 0, canvas.width, canvas.height);
      
-    
 //    targetCharacter(block, player);
 
-    player.update();
+    player.update(deltaTime);
     player.draw();
    
     playerHealth.update();
@@ -432,6 +448,9 @@ function animate() {
     fireball.update(block.x,block.y);
     fireball.draw(ctxAttacks)
 
+    boss.update(deltaTime);
+    boss.draw(ctx);
+
     resolveCollision(player, block);
 
 
@@ -440,19 +459,11 @@ function animate() {
     
     
     ctx.restore()
-    requestAnimationFrame(animate);
+    requestAnimationFrame(gameLoop);
     
 }
 
-playerImage.onload = () => {
-    animate();
-};
-
-
-
-
-
-
+requestAnimationFrame(gameLoop);
 
 
 //stats ui
@@ -1221,7 +1232,7 @@ function applyDamage(target, damage, options = {}) {
   // Apply status effects
   if (statusEffects.length > 0 && target.statusEffects) {
     statusEffects.forEach(effect => {
-      target.statusEffects.push(effect);
+      applyStatusEffect(target, { ...effect })
     });
   }
 
@@ -1276,3 +1287,686 @@ function showDamageText(target, amount, isCritical, type) {
   // If you have a floating text system, call it here:
   // floatingText.create(target.x, target.y, amount, color, size);
 }
+const StatusEffectRegistry = {
+  // 🔥 Burn (damage over time)
+  burn: {
+    onApply: (target, effect) => {
+      console.log(`${target.name} is burning! 🔥`);
+    },
+    onTick: (target, effect) => {
+      target.health = Math.max(0, target.health - (effect.damage || 1));
+      console.log(`${target.name} takes ${effect.damage || 1} burn damage`);
+    },
+    onExpire: (target) => {
+      console.log(`${target.name} stopped burning.`);
+    }
+  },
+
+  // ❄️ Slow (reduces movement speed)
+  slow: {
+    onApply: (target, effect) => {
+      target.speedModifier = effect.speedReduction || 0.5;
+      console.log(`${target.name} is slowed by ${target.speedModifier * 100}% ❄️`);
+    },
+    onTick: () => {},
+    onExpire: (target) => {
+      target.speedModifier = 1.0;
+      console.log(`${target.name} is no longer slowed.`);
+    }
+  },
+
+  // ⚡ Stun (disables movement/actions)
+  stun: {
+    onApply: (target) => {
+      target.canMove = false;
+      target.canAttack = false;
+      console.log(`${target.name} is stunned! ⚡`);
+    },
+    onTick: () => {},
+    onExpire: (target) => {
+      target.canMove = true;
+      target.canAttack = true;
+      console.log(`${target.name} recovered from stun.`);
+    }
+  },
+
+  // ☠️ Poison (damage over time, weaker than burn but longer)
+  poison: {
+    onApply: (target, effect) => {
+      console.log(`${target.name} is poisoned! ☠️`);
+    },
+    onTick: (target, effect) => {
+      target.health = Math.max(0, target.health - (effect.damage || 2));
+      console.log(`${target.name} suffers ${effect.damage || 2} poison damage`);
+    },
+    onExpire: (target) => {
+      console.log(`${target.name} is no longer poisoned.`);
+    }
+  },
+
+  // 🛡️ Shield (absorbs incoming damage)
+  shield: {
+    onApply: (target, effect) => {
+      target.shield = (target.shield || 0) + (effect.absorption || 0);
+      console.log(`${target.name} gains a shield of ${effect.absorption} HP 🛡️`);
+    },
+    onTick: () => {},
+    onExpire: (target, effect) => {
+      target.shield = Math.max(0, (target.shield || 0) - (effect.absorption || 0));
+      console.log(`${target.name}'s shield expired.`);
+    }
+  },
+
+  // 🌱 Regeneration (heals over time)
+  regeneration: {
+    onApply: (target) => {
+      console.log(`${target.name} is regenerating health 🌱`);
+    },
+    onTick: (target, effect) => {
+      target.health = Math.min(target.maxHealth, target.health + (effect.healing || 2));
+      console.log(`${target.name} heals ${effect.healing || 2} HP from regeneration`);
+    },
+    onExpire: (target) => {
+      console.log(`${target.name}'s regeneration ended.`);
+    }
+  },
+
+  // 🔥 Fire Shield (absorbs + reflects damage)
+  fire_shield: {
+    onApply: (target, effect) => {
+      target.shield = (target.shield || 0) + (effect.absorption || 0);
+      target.reflectDamage = effect.reflection || 0;
+      console.log(`${target.name} is protected by a fiery shield 🔥🛡️`);
+    },
+    onTick: () => {},
+    onExpire: (target, effect) => {
+      target.shield = Math.max(0, (target.shield || 0) - (effect.absorption || 0));
+      target.reflectDamage = 0;
+      console.log(`${target.name}'s fire shield faded.`);
+    }
+  },
+
+  // 🔮 Mana Burn (drains mana over time)
+  mana_burn: {
+    onApply: (target, effect) => {
+      console.log(`${target.name} is afflicted with mana burn 🔮`);
+    },
+    onTick: (target, effect) => {
+      if (target.mana !== undefined) {
+        target.mana = Math.max(0, target.mana - (effect.manaDrain || 1));
+        console.log(`${target.name} loses ${effect.manaDrain || 1} mana from burn`);
+      }
+    },
+    onExpire: (target) => {
+      console.log(`${target.name}'s mana burn ended.`);
+    }
+  },
+
+  // 🌊 Healing Over Time (HoT)
+  healing_over_time: {
+    onApply: (target) => {
+      console.log(`${target.name} is blessed with healing over time 🌊`);
+    },
+    onTick: (target, effect) => {
+      target.health = Math.min(target.maxHealth, target.health + (effect.healing || 1));
+      console.log(`${target.name} heals ${effect.healing || 1} HP over time`);
+    },
+    onExpire: (target) => {
+      console.log(`${target.name}'s healing effect faded.`);
+    }
+  },
+
+  // 😱 Fear (forces target to flee / disables attacking)
+  fear: {
+    onApply: (target) => {
+      target.canAttack = false;
+      target.isFeared = true;
+      console.log(`${target.name} is terrified and flees! 😱`);
+    },
+    onTick: (target) => {
+      if (target.isFeared) {
+        target.x += (Math.random() < 0.5 ? -1 : 1) * 5; // random movement
+      }
+    },
+    onExpire: (target) => {
+      target.canAttack = true;
+      target.isFeared = false;
+      console.log(`${target.name} is no longer afraid.`);
+    }
+  },
+
+  // ⚡ Chain Lightning (jumps between targets)
+  chain_lightning: {
+    onApply: (target, effect) => {
+      console.log(`${target.name} is struck by chain lightning ⚡`);
+      // Here you’d implement logic to find nearby enemies and apply damage
+    },
+    onTick: () => {},
+    onExpire: () => {}
+  },
+
+  // ⚡ Paralysis (reduces movement/attack)
+  paralysis: {
+    onApply: (target) => {
+      target.canMove = false;
+      console.log(`${target.name} is paralyzed ⚡`);
+    },
+    onTick: () => {},
+    onExpire: (target) => {
+      target.canMove = true;
+      console.log(`${target.name} recovered from paralysis.`);
+    }
+  },
+
+  // ✨ Blessing (buff: damage reduction)
+  blessing: {
+    onApply: (target, effect) => {
+      target.damageReduction = effect.damageReduction || 0.2;
+      console.log(`${target.name} is blessed ✨`);
+    },
+    onTick: () => {},
+    onExpire: (target) => {
+      target.damageReduction = 0;
+      console.log(`${target.name}'s blessing ended.`);
+    }
+  },
+
+  // 🕊️ Purify (removes debuffs)
+  purify: {
+    onApply: (target) => {
+      if (target.statusEffects) {
+        target.statusEffects = target.statusEffects.filter(e => 
+          !['burn','poison','fear','stun','paralysis'].includes(e.type)
+        );
+      }
+      console.log(`${target.name} is purified 🕊️ All debuffs removed`);
+    },
+    onTick: () => {},
+    onExpire: () => {}
+  },
+
+  // 🌍 Knockdown (forces fall / disables movement briefly)
+  knockdown: {
+    onApply: (target) => {
+      target.canMove = false;
+      console.log(`${target.name} is knocked down 🌍`);
+    },
+    onTick: () => {},
+    onExpire: (target) => {
+      target.canMove = true;
+      console.log(`${target.name} got back up.`);
+    }
+  }
+};
+
+
+function updateStatusEffects(target, deltaTime) {
+  if (!target.statusEffects || target.statusEffects.length === 0) return;
+
+  const now = Date.now();
+
+  target.statusEffects = target.statusEffects.filter(effect => {
+    const effectDef = StatusEffectRegistry[effect.type];
+    if (!effectDef) return false; // unknown effect
+
+    // Tick-based effects
+    if (effect.tickInterval && now - effect.lastTick >= effect.tickInterval) {
+      effectDef.onTick(target, effect);
+      effect.lastTick = now;
+    }
+
+    // Decrease duration
+    effect.duration -= deltaTime;
+
+    if (effect.duration <= 0) {
+      effectDef.onExpire(target, effect);
+      return false;
+    }
+
+    return true;
+  });
+}
+function applyStatusEffect(target, effect) {
+  if (!target.statusEffects) target.statusEffects = [];
+
+  const effectDef = StatusEffectRegistry[effect.type];
+  if (!effectDef) {
+    console.warn("Unknown effect:", effect.type);
+    return;
+  }
+
+  effect.lastTick = Date.now();
+  target.statusEffects.push(effect);
+  effectDef.onApply(target, effect);
+}
+
+
+class BossNew {
+  constructor(x, y) {
+    // Basic properties
+    this.name = "Boss";
+    this.x = x;
+    this.y = y;
+    this.width = 120;
+    this.height = 120;
+    
+    // Health and defense
+    this.maxHealth = 500;
+    this.health = this.maxHealth;
+    this.armor = 20;
+    this.magicResistance = 15;
+    this.poisonResistance = 10;
+    this.statusEffects = [];
+    
+    // Movement
+    this.speed = 400;
+    this.vx = 0;
+    this.vy = 0;
+    this.targetX = null;
+    this.targetY = null;
+    
+    // Combat
+    this.damage = 25;
+    this.attackRange = 1000;
+    this.detectionRange = 2000;
+    this.lastAttackTime = 0;
+    this.attackCooldown = 2000; // 2 seconds
+    
+    // AI States
+    this.state = "idle"; // idle, chase, attack, dead
+    this.aggroTarget = null;
+    this.lastPlayerSeen = 0;
+    this.memoryDuration = 10000; // Remember player for 5 seconds
+    
+    // Phase system
+    this.currentPhase = 1;
+    this.phaseTransitioning = false;
+    
+    // Visual
+    this.facingLeft = false;
+    this.color = "#8B0000";
+    this.isInvulnerable = false;
+    
+    // Animation (if you want to add sprites later)
+    this.frameIndex = 0;
+    this.frameElapsed = 0;
+    this.frameHold = 8;
+    
+    console.log(`${this.name} spawned with ${this.health}/${this.maxHealth} HP`);
+  }
+  
+  update(deltaTime) {
+    if (this.health <= 0 && this.state !== "dead") {
+      this.die();
+      return;
+    }
+   
+    // Update status effects
+    updateStatusEffects(this, deltaTime);
+    
+    // Check if stunned or unable to act
+    if (!this.canAct()) {
+      return;
+    }
+    
+    // Update phase based on health
+    this.updatePhase();
+    
+    // Update AI
+    this.updateAI(deltaTime);
+    
+    // Update movement
+    this.updateMovement(deltaTime);
+  }
+  
+  canAct() {
+    const disablingEffects = ['stun', 'fear', 'paralysis', 'knockdown'];
+    return !this.statusEffects.some(effect => disablingEffects.includes(effect.type));
+  }
+  
+  updatePhase() {
+    const healthPercent = this.health / this.maxHealth;
+    
+    // Phase 2 at 66% health
+    if (healthPercent <= 0.66 && this.currentPhase === 1) {
+      this.transitionToPhase(2);
+    }
+    // Phase 3 at 33% health  
+    else if (healthPercent <= 0.33 && this.currentPhase === 2) {
+      this.transitionToPhase(3);
+    }
+  }
+  
+  transitionToPhase(phase) {
+    this.currentPhase = phase;
+    this.phaseTransitioning = true;
+    
+    console.log(`${this.name} enters Phase ${phase}!`);
+    
+    // Increase difficulty each phase
+    if (phase === 2) {
+      this.speed *= 1.2;
+      this.attackCooldown *= 0.8;
+      this.damage *= 1.2;
+    } else if (phase === 3) {
+      this.speed *= 1.3;
+      this.attackCooldown *= 0.7;
+      this.damage *= 1.3;
+      this.color = "#FF0000"; // Turn red when enraged
+    }
+    
+    // Brief invulnerability during transition
+    this.makeInvulnerable(1000);
+    
+    setTimeout(() => {
+      this.phaseTransitioning = false;
+    }, 2000);
+  }
+  
+  updateAI(deltaTime) {
+    const distanceToPlayer = this.getDistanceToPlayer();
+    const currentTime = Date.now();
+    
+    switch(this.state) {
+      case "idle":
+        // Check if player is in detection range
+        if (distanceToPlayer < this.detectionRange) {
+          this.aggroTarget = player;
+          this.lastPlayerSeen = currentTime;
+          this.changeState("chase");
+        }
+        break;
+        
+      case "chase":
+        // Lose aggro if player is too far for too long
+        if (distanceToPlayer > this.detectionRange * 1.5 && 
+            currentTime - this.lastPlayerSeen > this.memoryDuration) {
+          this.aggroTarget = null;
+          this.changeState("idle");
+          break;
+        }
+        
+        // Update player position if in range
+        if (distanceToPlayer < this.detectionRange) {
+          this.lastPlayerSeen = currentTime;
+        }
+        
+        // Move towards player
+        this.targetX = player.x;
+        this.targetY = player.y;
+        
+        // Switch to attack if in range and cooldown is ready
+        if (distanceToPlayer < this.attackRange && 
+            currentTime - this.lastAttackTime > this.attackCooldown) {
+          this.changeState("attack");
+        }
+        break;
+        
+      case "attack":
+        // Stop movement and attack
+        this.vx = 0;
+        this.vy = 0;
+        
+        if (currentTime - this.lastAttackTime > this.attackCooldown) {
+          this.performAttack();
+          this.lastAttackTime = currentTime;
+          
+          // Return to chase after brief delay
+          setTimeout(() => {
+            if (this.state === "attack") {
+              this.changeState("chase");
+            }
+          }, 500);
+        }
+        break;
+    }
+  }
+  
+  updateMovement(deltaTime) {
+    if (this.targetX !== null && this.targetY !== null) {
+      const dx = this.targetX - this.x;
+      const dy = this.targetY - this.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance > 5) {
+        const dirX = dx / distance;
+        const dirY = dy / distance;
+        
+        this.vx = dirX * this.speed;
+        this.vy = dirY * this.speed;
+        
+        // Update facing direction
+        this.facingLeft = dirX < 0;
+      } else {
+        this.vx = 0;
+        this.vy = 0;
+      }
+    }
+    
+    // Apply movement
+    this.x += this.vx * deltaTime;
+    this.y += this.vy * deltaTime;
+    
+    // Keep boss within screen bounds
+    this.x = Math.max(this.width/2, Math.min(canvas.width - this.width/2, this.x));
+    this.y = Math.max(this.height/2, Math.min(canvas.height - this.height/2, this.y));
+  }
+  
+  performAttack() {
+    const distanceToPlayer = this.getDistanceToPlayer();
+    
+    if (distanceToPlayer <= this.attackRange) {
+      console.log(`${this.name} attacks player!`);
+      
+      let availableAttacks = attackLibrary.filter(a => {
+        // Phase unlocks
+        if (this.currentPhase === 1 && a.phase && a.phase > 1) return false;
+        if (this.currentPhase === 2 && a.phase && a.phase > 2) return false;
+        // Range logic
+        if (a.range < distanceToPlayer) return false;
+        return true;
+    });
+
+    if (availableAttacks.length === 0) return;
+    const chosen = availableAttacks[Math.floor(Math.random() * availableAttacks.length)];
+
+    console.log(`${this.name} uses ${chosen.name}!`);
+      // Different attacks based on phase
+      let attackDamage = this.damage;
+      let statusEffects = [];
+      
+      if (this.currentPhase === 2) {
+        // Phase 2: Add burn effect
+        statusEffects.push({ type: 'burn', duration: 3, damage: 2 });
+      } else if (this.currentPhase === 3) {
+        // Phase 3: Add burn and stun
+        statusEffects.push({ type: 'burn', duration: 4, damage: 3 });
+        if (Math.random() < 0.3) { // 30% chance to stun
+          statusEffects.push({ type: 'stun', duration: 1 });
+        }
+      }
+      
+      // Apply damage to player
+      applyDamage(player, attackDamage, {
+        damageType: 'physical',
+        statusEffects: statusEffects,
+        knockback: 5,
+        onDamageCallback: (target, info) => {
+          console.log(`${this.name} hits ${target.name} for ${info.finalDamage} damage!`);
+        }
+      });
+    }
+  }
+  
+  takeDamage(damage, options = {}) {
+    if (this.isInvulnerable) {
+      console.log(`${this.name} is invulnerable!`);
+      return false;
+    }
+    
+    // Apply damage
+    const result = applyDamage(this, damage, options);
+    
+    // Boss reactions to taking damage
+    if (result.finalDamage > 0) {
+      // Interrupt attack state
+      if (this.state === "attack") {
+        this.changeState("chase");
+      }
+      
+      // 10% chance to do special reaction when damaged
+      if (Math.random() < 0.1) {
+        this.specialReaction();
+      }
+    }
+    
+    return result;
+  }
+  
+  specialReaction() {
+    const reactions = ['teleport', 'heal', 'rage'];
+    const reaction = reactions[Math.floor(Math.random() * reactions.length)];
+    
+    switch(reaction) {
+      case 'teleport':
+        this.teleport();
+        break;
+      case 'heal':
+        const healAmount = Math.floor(this.maxHealth * 0.1); // Heal 10%
+        this.health = Math.min(this.maxHealth, this.health + healAmount);
+        console.log(`${this.name} heals for ${healAmount} HP!`);
+        break;
+      case 'rage':
+        this.damage *= 1.2;
+        this.speed *= 1.2;
+        console.log(`${this.name} enters a rage!`);
+        setTimeout(() => {
+          this.damage /= 1.2;
+          this.speed /= 1.2;
+        }, 5000);
+        break;
+    }
+  }
+  
+  teleport() {
+    // Teleport to random location away from player
+    let newX, newY, distance;
+    do {
+      newX = Math.random() * (canvas.width - this.width) + this.width/2;
+      newY = Math.random() * (canvas.height - this.height) + this.height/2;
+      distance = Math.sqrt((newX - player.x)**2 + (newY - player.y)**2);
+    } while (distance < 150); // Ensure minimum distance from player
+    
+    this.x = newX;
+    this.y = newY;
+    console.log(`${this.name} teleports!`);
+  }
+  
+  makeInvulnerable(duration) {
+    this.isInvulnerable = true;
+    setTimeout(() => {
+      this.isInvulnerable = false;
+    }, duration);
+  }
+  
+  getDistanceToPlayer() {
+    return Math.sqrt((this.x - player.x)**2 + (this.y - player.y)**2);
+  }
+  
+  changeState(newState) {
+    if (this.state !== newState) {
+      console.log(`${this.name}: ${this.state} -> ${newState}`);
+      this.state = newState;
+    }
+  }
+  
+  die() {
+    this.state = "dead";
+    console.log(`${this.name} has been defeated!`);
+    
+    // Award experience or trigger victory condition
+    console.log("Player wins!");
+    
+    // You can add victory logic here
+    // gameState = "victory";
+  }
+  
+  draw(ctx) {
+    if (this.state === "dead") return;
+    
+    // Draw health bar
+    this.drawHealthBar(ctx);
+    
+    // Draw status effects
+    // drawStatusEffects(ctx, this, this.x - this.width/2, this.y - this.height/2);
+    
+    // Draw boss body
+    ctx.fillStyle = this.isInvulnerable ? "#FF8888" : this.color;
+    ctx.fillRect(
+      this.x - this.width/2,
+      this.y - this.height/2,
+      this.width,
+      this.height
+    );
+    
+    // Draw name
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "16px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(this.name, this.x, this.y);
+    
+    // Draw phase indicator
+    ctx.fillStyle = "#FFFF00";
+    ctx.font = "12px Arial";
+    ctx.fillText(`Phase ${this.currentPhase}`, this.x, this.y + 20);
+    
+    // Phase transition effect
+    if (this.phaseTransitioning) {
+      ctx.strokeStyle = "#FFFF00";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(
+        this.x - this.width/2 - 5,
+        this.y - this.height/2 - 5,
+        this.width + 10,
+        this.height + 10
+      );
+    }
+  }
+  
+  drawHealthBar(ctx) {
+    const barWidth = this.width + 20;
+    const barHeight = 8;
+    const x = this.x - barWidth/2;
+    const y = this.y - this.height/2 - 20;
+    
+    // Background
+    ctx.fillStyle = "#444444";
+    ctx.fillRect(x, y, barWidth, barHeight);
+    
+    // Health
+    const healthPercent = this.health / this.maxHealth;
+    ctx.fillStyle = healthPercent > 0.5 ? "#00FF00" : 
+                    healthPercent > 0.25 ? "#FFFF00" : "#FF0000";
+    ctx.fillRect(x, y, barWidth * healthPercent, barHeight);
+    
+    // Border
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, barWidth, barHeight);
+    
+    // Health text
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "10px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(`${this.health}/${this.maxHealth}`, this.x, y - 3);
+  }
+}
+
+// Usage:
+const boss = new BossNew(400, 300);
+// 
+// In game loop:
+
+//
+// When player attacks hit:
+// boss.takeDamage(attack.damage, { damageType: 'fire', statusEffects: [...] });

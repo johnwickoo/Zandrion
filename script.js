@@ -424,13 +424,13 @@ function animate() {
     playerStamina.draw()
 
     playerMana.update();
-    playerMana.draw()
-
-    fireball.update(block.x,block.y);
-    fireball.draw(ctx)
+    playerMana.draw();
    
     block.update();
-    block.draw()
+    block.draw();
+
+    fireball.update(block.x,block.y);
+    fireball.draw(ctxAttacks)
 
     resolveCollision(player, block);
 
@@ -524,7 +524,7 @@ class Boss{
         this.vx=0;
         this.vy=0
         this.acceleration=30;
-       
+        this.health=100
         
     }
     update(){
@@ -541,8 +541,11 @@ class Boss{
 
     draw(){
         ctxStats.clearRect(0, 0, canvasStat.width, canvasStat.height);
-        ctxStats.fillStyle = 'grey';
-        ctxStats.fillRect(this.x, this.y, this.width, this.height);
+        if(this.health>=0){
+            ctxStats.fillStyle = 'grey';
+            ctxStats.fillRect(this.x, this.y, this.width, this.height);
+        }
+        
     }
 }
 
@@ -632,26 +635,291 @@ function targetCharacter(block, player) {
 
 const canvasAttacks = document.getElementById('canvas4');
 const ctxAttacks = canvasAttacks.getContext('2d');
-canvas.width = 1400;
-canvas.height = 700;
+canvasAttacks.width = 1400;
+canvasAttacks.height = 700;
 
 const attackLibrary = [
-    { id: 0, name: "Melee", type: "damageDealer", damage: 5, range: 500, castDuration: 0, manaCost: 0, cooldown: 0, availability: true, imageSrc:'background.jpg', framesX:8, imgWidth:576, imgHeight:72 },
-    { id: 1, name: "Fireball", type: "damageDealer", damage: 20, range: 15, castDuration: 1.5, manaCost: 10, cooldown: 3, availability: true },
-    { id: 2, name: "Ice Spike", type: "damageDealer", damage: 15, range: 12, castDuration: 1, manaCost: 8, cooldown: 2.5, availability: true },
-    { id: 3, name: "Lightning Bolt", type: "damageDealer", damage: 25, range: 20, castDuration: 2, manaCost: 15, cooldown: 4, availability: true },
-    { id: 4, name: "Heal", type: "support", damage: -20, range: 10, castDuration: 1.5, manaCost: 12, cooldown: 5, availability: true },
-    { id: 5, name: "Shield", type: "defense", damage: 0, range: 0, castDuration: 0.5, manaCost: 5, cooldown: 3, availability: true },
-    { id: 6, name: "Poison Dart", type: "damageDealer", damage: 12, range: 10, castDuration: 1, manaCost: 6, cooldown: 2, availability: true },
-    { id: 7, name: "Earthquake", type: "damageDealer", damage: 30, range: 8, castDuration: 3, manaCost: 20, cooldown: 6, availability: true },
-    { id: 8, name: "Wind Slash", type: "damageDealer", damage: 18, range: 14, castDuration: 1, manaCost: 8, cooldown: 2, availability: true },
-    { id: 9, name: "Fire Shield", type: "defense", damage: 0, range: 0, castDuration: 0.5, manaCost: 10, cooldown: 4, availability: true },
-    { id: 10, name: "Arcane Blast", type: "damageDealer", damage: 22, range: 16, castDuration: 1.2, manaCost: 12, cooldown: 3.5, availability: true },
-    { id: 11, name: "Healing Wave", type: "support", damage: -15, range: 12, castDuration: 1.8, manaCost: 10, cooldown: 4, availability: true },
-    { id: 12, name: "Shadow Strike", type: "damageDealer", damage: 28, range: 10, castDuration: 1.5, manaCost: 18, cooldown: 5, availability: true },
-    { id: 13, name: "Thunderstorm", type: "damageDealer", damage: 35, range: 20, castDuration: 2.5, manaCost: 25, cooldown: 7, availability: true },
-    { id: 14, name: "Holy Light", type: "support", damage: -25, range: 15, castDuration: 2, manaCost: 20, cooldown: 6, availability: true }
+  { 
+    id: 0, 
+    name: "Melee", 
+    type: "damageDealer", 
+    damage: 5, 
+    range: 1000, 
+    castDuration: 0, 
+    manaCost: 0, 
+    cooldown: 0, 
+    availability: true, 
+    imageSrc:'background.jpg', 
+    framesX:8, 
+    imgWidth:576, 
+    imgHeight:72,
+    // Damage options
+    damageType: 'physical',
+    critChance: 0.05, // 5%
+    critMultiplier: 1.5,
+    armorPenetration: 0,
+    statusEffects: [],
+    knockback: 2
+  },
+  { 
+    id: 1, 
+    name: "Fireball", 
+    type: "damageDealer", 
+    damage: 20, 
+    range: 15, 
+    castDuration: 1.5, 
+    manaCost: 10, 
+    cooldown: 3, 
+    availability: true,
+    // Damage options
+    damageType: 'fire',
+    critChance: 0.15, // 15%
+    critMultiplier: 2.2,
+    armorPenetration: 10,
+    statusEffects: [{ type: 'burn', duration: 3, damage: 2 }],
+    knockback: 5
+  },
+  { 
+    id: 2, 
+    name: "Ice Spike", 
+    type: "damageDealer", 
+    damage: 15, 
+    range: 12, 
+    castDuration: 1, 
+    manaCost: 8, 
+    cooldown: 2.5, 
+    availability: true,
+    // Damage options
+    damageType: 'ice',
+    critChance: 0.12, // 12%
+    critMultiplier: 1.8,
+    armorPenetration: 15,
+    statusEffects: [{ type: 'slow', duration: 4, speedReduction: 0.5 }],
+    knockback: 3
+  },
+  { 
+    id: 3, 
+    name: "Lightning Bolt", 
+    type: "damageDealer", 
+    damage: 25, 
+    range: 20, 
+    castDuration: 2, 
+    manaCost: 15, 
+    cooldown: 4, 
+    availability: true,
+    // Damage options
+    damageType: 'lightning',
+    critChance: 0.20, // 20%
+    critMultiplier: 2.5,
+    armorPenetration: 25,
+    statusEffects: [{ type: 'stun', duration: 1.5 }],
+    knockback: 8
+  },
+  { 
+    id: 4, 
+    name: "Heal", 
+    type: "support", 
+    damage: -20, 
+    range: 10, 
+    castDuration: 1.5, 
+    manaCost: 12, 
+    cooldown: 5, 
+    availability: true,
+    // Healing options
+    damageType: 'healing',
+    critChance: 0.10, // 10% for bonus healing
+    critMultiplier: 1.5,
+    statusEffects: [{ type: 'regeneration', duration: 5, healing: 2 }],
+    knockback: 0
+  },
+  { 
+    id: 5, 
+    name: "Shield", 
+    type: "defense", 
+    damage: 0, 
+    range: 0, 
+    castDuration: 0.5, 
+    manaCost: 5, 
+    cooldown: 3, 
+    availability: true,
+    // Shield options
+    damageType: 'defense',
+    shieldAmount: 15,
+    duration: 10,
+    statusEffects: [{ type: 'shield', duration: 10, absorption: 15 }],
+    knockback: 0
+  },
+  { 
+    id: 6, 
+    name: "Poison Dart", 
+    type: "damageDealer", 
+    damage: 12, 
+    range: 10, 
+    castDuration: 1, 
+    manaCost: 6, 
+    cooldown: 2, 
+    availability: true,
+    // Damage options
+    damageType: 'poison',
+    critChance: 0.08, // 8%
+    critMultiplier: 1.6,
+    armorPenetration: 30, // Poison ignores some armor
+    statusEffects: [{ type: 'poison', duration: 6, damage: 3 }],
+    knockback: 1
+  },
+  { 
+    id: 7, 
+    name: "Earthquake", 
+    type: "damageDealer", 
+    damage: 30, 
+    range: 8, 
+    castDuration: 3, 
+    manaCost: 20, 
+    cooldown: 6, 
+    availability: true,
+    // Damage options
+    damageType: 'earth',
+    critChance: 0.25, // 25%
+    critMultiplier: 2.0,
+    armorPenetration: 5,
+    statusEffects: [{ type: 'knockdown', duration: 2 }],
+    knockback: 12,
+    areaOfEffect: true // Hits multiple targets
+  },
+  { 
+    id: 8, 
+    name: "Wind Slash", 
+    type: "damageDealer", 
+    damage: 18, 
+    range: 14, 
+    castDuration: 1, 
+    manaCost: 8, 
+    cooldown: 2, 
+    availability: true,
+    // Damage options
+    damageType: 'wind',
+    critChance: 0.18, // 18%
+    critMultiplier: 2.1,
+    armorPenetration: 20,
+    statusEffects: [],
+    knockback: 6
+  },
+  { 
+    id: 9, 
+    name: "Fire Shield", 
+    type: "defense", 
+    damage: 0, 
+    range: 0, 
+    castDuration: 0.5, 
+    manaCost: 10, 
+    cooldown: 4, 
+    availability: true,
+    // Shield options
+    damageType: 'fire',
+    shieldAmount: 20,
+    reflectDamage: 5, // Damages attackers
+    statusEffects: [{ type: 'fire_shield', duration: 8, reflection: 5 }],
+    knockback: 0
+  },
+  { 
+    id: 10, 
+    name: "Arcane Blast", 
+    type: "damageDealer", 
+    damage: 22, 
+    range: 16, 
+    castDuration: 1.2, 
+    manaCost: 12, 
+    cooldown: 3.5, 
+    availability: true,
+    // Damage options
+    damageType: 'arcane',
+    critChance: 0.22, // 22%
+    critMultiplier: 2.3,
+    armorPenetration: 35, // Arcane pierces magical defenses
+    statusEffects: [{ type: 'mana_burn', duration: 3, manaDrain: 5 }],
+    knockback: 4
+  },
+  { 
+    id: 11, 
+    name: "Healing Wave", 
+    type: "support", 
+    damage: -15, 
+    range: 12, 
+    castDuration: 1.8, 
+    manaCost: 10, 
+    cooldown: 4, 
+    availability: true,
+    // Healing options
+    damageType: 'healing',
+    critChance: 0.15, // 15%
+    critMultiplier: 1.8,
+    statusEffects: [{ type: 'healing_over_time', duration: 4, healing: 3 }],
+    knockback: 0,
+    areaOfEffect: true // Heals multiple allies
+  },
+  { 
+    id: 12, 
+    name: "Shadow Strike", 
+    type: "damageDealer", 
+    damage: 28, 
+    range: 10, 
+    castDuration: 1.5, 
+    manaCost: 18, 
+    cooldown: 5, 
+    availability: true,
+    // Damage options
+    damageType: 'shadow',
+    critChance: 0.30, // 30% - high crit
+    critMultiplier: 2.8,
+    armorPenetration: 40, // Shadow ignores armor
+    statusEffects: [{ type: 'fear', duration: 2 }],
+    knockback: 2
+  },
+  { 
+    id: 13, 
+    name: "Thunderstorm", 
+    type: "damageDealer", 
+    damage: 35, 
+    range: 20, 
+    castDuration: 2.5, 
+    manaCost: 25, 
+    cooldown: 7, 
+    availability: true,
+    // Damage options
+    damageType: 'lightning',
+    critChance: 0.28, // 28%
+    critMultiplier: 3.0,
+    armorPenetration: 20,
+    statusEffects: [
+      { type: 'chain_lightning', duration: 1, jumps: 3 },
+      { type: 'paralysis', duration: 2 }
+    ],
+    knockback: 10,
+    areaOfEffect: true
+  },
+  { 
+    id: 14, 
+    name: "Holy Light", 
+    type: "support", 
+    damage: -25, 
+    range: 15, 
+    castDuration: 2, 
+    manaCost: 20, 
+    cooldown: 6, 
+    availability: true,
+    // Healing options
+    damageType: 'holy',
+    critChance: 0.20, // 20%
+    critMultiplier: 2.0,
+    statusEffects: [
+      { type: 'blessing', duration: 10, damageReduction: 0.2 },
+      { type: 'purify', duration: 1 } // Removes debuffs
+    ],
+    knockback: 0,
+    areaOfEffect: true
+  }
 ];
+
 
 class Attack {
   constructor({id, name, type, damage, range, castDuration, manaCost, cooldown, availability, imageSrc, framesX=1, imgWidth=0, imgHeight=0}) {
@@ -664,13 +932,13 @@ class Attack {
     this.manaCost = manaCost;
     this.cooldown = cooldown;
     this.availability = availability;
-    
+    this.isVisible=true
     // Position and movement
     this.targetX = null;
     this.targetY = null;
     this.x = player.x;
     this.y = player.y;
-    this.acceleration = 1;
+    this.acceleration = 10;
     this.vx = 0;
     this.vy = 0; // This was missing!
     
@@ -710,8 +978,8 @@ class Attack {
   }
 
   update(x, y) {
-    this.targetX = x - (playerWidth) / 2;
-    this.targetY = y - (playerHeight) / 2;
+    this.targetX = x - (playerWidth) / 2 +block.width*1;
+    this.targetY = y - (playerHeight) / 2 +block.height*0.7;
     
 
     if (this.targetX !== null && this.targetY !== null) {
@@ -719,31 +987,55 @@ class Attack {
       let dy = this.targetY - this.y;
       let dist = Math.sqrt((dx * dx) + (dy * dy));
 
-      if (dist > 1) { // still far from destination
+    let startDist = Math.sqrt(
+    (this.x - player.x) * (this.x - player.x) + 
+    (this.y - player.y) * (this.y - player.y)
+    );
+
+    if (isColliding(fireball, block)) {
+  // Hit an obstacle - stop immediately
+        this.isVisible = false;
+        this.vx = 0;
+        this.vy = 0;
+        this.targetX = null;
+        this.targetY = null;
+        // console.log("Attack hit obstacle!");
+        
+    }else if (startDist > this.range) {
+        // Beyond maximum range - stop attack
+        this.isVisible = false;
+        this.vx = 0;
+        this.vy = 0;
+        this.targetX = null;
+        this.targetY = null;
+        // console.log("Attack beyond range!");
+        
+    }else if (dist > 1) {
+    // Still moving toward target - no collision, within range, and far enough away
         let dirX = dx / dist;
         let dirY = dy / dist;
 
-        // Apply acceleration
-        this.vx += dirX * this.acceleration;
-        this.vy += dirY * this.acceleration;
+        // Apply velocity (direct movement, not acceleration)
+        this.vx = dirX * this.acceleration;
+        this.vy = dirY * this.acceleration;
 
         // Update position
         this.x += this.vx;
         this.y += this.vy;
 
-        // console.log("Moving:", "dx:", dx, "dy:", dy, "dist:", dist, "dirX:", dirX, "dirY:", dirY, this.vx, this.vy);
-      } else {
-        // Reached destination
+        // console.log("Moving:", "dx:", dx, "dy:", dy, "dist:", dist, "range:", startDist);
+    
+    }else {
+        // Reached target destination
+        this.isVisible = false;
         this.vx = 0;
         this.vy = 0;
         this.x = this.targetX;
         this.y = this.targetY;
-
-        // console.log("Arrived at target:", this.targetX, this.targetY);
-
         this.targetX = null;
         this.targetY = null;
-      }
+        console.log("Attack reached target!");
+    }
     }
 
     // Update animation frames
@@ -782,11 +1074,13 @@ class Attack {
     //     console.error(`Failed to draw sprite for ${this.name}:`, error);
     //   }
     // }
-
+    ctx.clearRect(0,0,canvasAttacks.width,canvasAttacks.height)
     // // Fallback: draw grey rectangle
-    
+   if(this.isVisible){
     ctx.fillStyle = 'green';
     ctx.fillRect(this.x, this.y, 20, 20);
+   }
+    
   }
 }
 // Auto-convert whole library into Attack instances
@@ -796,3 +1090,189 @@ const attacks = attackLibrary.map(data => new Attack(data));
 const fireball = attacks[0];  // Fireball
 
 
+function applyAttackDamage(attack, target, attacker = player) {
+    const isCritical = Math.random() < attack.critChance;
+
+    let armor = 0;
+    let armorType = 'physical';
+
+    if (target.armor) {
+    switch(attack.damageType) {
+      case 'physical':
+        armor = target.armor || 0;
+        armorType = 'physical';
+        break;
+      case 'fire':
+      case 'ice':
+      case 'lightning':
+      case 'arcane':
+      case 'shadow':
+        armor = target.magicResistance || 0;
+        armorType = 'magical';
+        break;
+      case 'poison':
+        armor = target.poisonResistance || 0;
+        armorType = 'poison';
+        break;
+      default:
+        armor = target.armor || 0;
+    }
+  }
+  const damageResult = applyDamage(target, Math.abs(attack.damage), {
+    damageType: attack.damageType,
+    isCritical: isCritical,
+    criticalMultiplier: attack.critMultiplier,
+    armor: armor,
+    armorType: armorType,
+    penetration: attack.armorPenetration || 0,
+    statusEffects: attack.statusEffects || [],
+    knockback: attack.knockback || 0,
+    showFloatingText: true,
+    onDamageCallback: (target, info) => {
+      // Custom callback for each attack type
+      if (info.wasKilled) {
+        console.log(`${target.name || 'Enemy'} was defeated by ${attack.name}!`);
+        // Award experience, play death sound, etc.
+      }
+      
+      // Special attack effects
+      if (attack.name === "Thunderstorm" && attack.areaOfEffect) {
+        // Apply chain lightning to nearby enemies
+        console.log("Chain lightning effect triggered!");
+      }
+    }
+  });
+
+  return damageResult;
+  
+
+}
+
+
+function applyDamage(target, damage, options = {}) {
+    const {
+    damageType = 'physical',        // 'physical', 'magical', 'fire', 'ice', etc.
+    isCritical = false,             // Is this a critical hit?
+    criticalMultiplier = 2.0,       // Critical hit damage multiplier
+    armor = 0,                      // Target's armor/resistance
+    armorType = 'physical',         // What type of armor ('physical', 'magical')
+    penetration = 0,                // Armor penetration percentage (0-100)
+    minDamage = 1,                  // Minimum damage that can be dealt
+    showFloatingText = true,        // Show damage numbers
+    knockback = 0,                  // Knockback force
+    statusEffects = [],             // Array of status effects to apply
+    onDamageCallback = null         // Callback function when damage is dealt
+  } = options;
+
+  if (!target || typeof target.health === 'undefined') {
+    console.error('Invalid target - must have health property');
+    return false;
+  }
+
+  if (damage < 0) {
+    console.warn('Negative damage value, treating as healing');
+    return applyHealing(target, Math.abs(damage));
+  }
+  let effectiveArmor = armor;
+  if (damageType === armorType) {
+    // Apply armor penetration
+    effectiveArmor = armor * (1 - (penetration / 100));
+  }
+
+  // Apply armor reduction (simple formula: damage * (100 / (100 + armor)))
+  let finalDamage = damage * (100 / (100 + effectiveArmor));
+
+  // Apply critical hit
+  if (isCritical) {
+    finalDamage *= criticalMultiplier;
+  }
+
+  // Ensure minimum damage
+  finalDamage = Math.max(finalDamage, minDamage);
+  
+  // Round to integer
+  finalDamage = Math.floor(finalDamage);
+
+  // Store damage info before applying
+  const damageInfo = {
+    originalDamage: damage,
+    finalDamage: finalDamage,
+    damageType: damageType,
+    isCritical: isCritical,
+    wasKilled: false
+  };
+  // Apply damage to target
+  const oldHealth = target.health;
+  target.health = Math.max(0, target.health - finalDamage);
+  
+  // Check if target was killed
+  if (target.health === 0 && oldHealth > 0) {
+    damageInfo.wasKilled = true;
+    if (target.onDeath && typeof target.onDeath === 'function') {
+      target.onDeath();
+    }
+  }
+
+  // Apply knockback if specified
+  if (knockback > 0 && target.x !== undefined && target.y !== undefined) {
+    if (target.vx !== undefined) target.vx += knockback * 0.1;
+    if (target.vy !== undefined) target.vy += knockback * 0.1;
+  }
+  // Apply status effects
+  if (statusEffects.length > 0 && target.statusEffects) {
+    statusEffects.forEach(effect => {
+      target.statusEffects.push(effect);
+    });
+  }
+
+  // Show floating damage text
+  if (showFloatingText) {
+    showDamageText(target, finalDamage, isCritical, damageType);
+  }
+
+  // Execute callback
+  if (onDamageCallback && typeof onDamageCallback === 'function') {
+    onDamageCallback(target, damageInfo);
+  }
+
+  // Log damage (optional)
+  console.log(`${target.name || 'Target'} took ${finalDamage} ${damageType} damage${isCritical ? ' (CRITICAL!)' : ''}`);
+
+  return damageInfo;
+
+}
+
+function applyHealing(target, healAmount, options = {}) {
+  const { maxHealth = target.maxHealth || 100, showFloatingText = true } = options;
+  
+  if (!target || typeof target.health === 'undefined') {
+    console.error('Invalid target for healing');
+    return false;
+  }
+
+  const oldHealth = target.health;
+  target.health = Math.min(maxHealth, target.health + healAmount);
+  const actualHealing = target.health - oldHealth;
+
+  if (showFloatingText && actualHealing > 0) {
+    showDamageText(target, actualHealing, false, 'healing');
+  }
+
+  console.log(`${target.name || 'Target'} healed for ${actualHealing} HP`);
+  return { healAmount: actualHealing };
+}
+
+/**
+ * Show floating damage/healing text
+ */
+function showDamageText(target, amount, isCritical, type) {
+  // This is a placeholder - implement based on your game's UI system
+  const color = type === 'healing' ? 'green' : (isCritical ? 'red' : 'white');
+  const size = isCritical ? '20px' : '16px';
+  
+  // Example floating text (you'll need to adapt this to your game)
+  console.log(`[${color.toUpperCase()}] ${isCritical ? 'CRITICAL! ' : ''}${amount} ${type.toUpperCase()}`);
+  
+  // If you have a floating text system, call it here:
+  // floatingText.create(target.x, target.y, amount, color, size);
+}

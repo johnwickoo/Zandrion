@@ -356,9 +356,8 @@ class Player {
         // Prevent going above top of canvas
         this.y = Math.max(0, this.y);
 
-        updateStatusEffects(this, deltaTime);
         }
-        
+        updateStatusEffects(this, deltaTime);
     }
 
     teleport(x,y){
@@ -664,13 +663,13 @@ const attackLibrary = [
     framesX:8, 
     imgWidth:576, 
     imgHeight:72,
-    // Damage options
     damageType: 'physical',
-    critChance: 0.05, // 5%
+    critChance: 0.05,
     critMultiplier: 1.5,
     armorPenetration: 0,
     statusEffects: [],
-    knockback: 2
+    knockback: 2,
+    phase: 1
   },
   { 
     id: 1, 
@@ -682,13 +681,13 @@ const attackLibrary = [
     manaCost: 10, 
     cooldown: 3, 
     availability: true,
-    // Damage options
     damageType: 'fire',
-    critChance: 0.15, // 15%
+    critChance: 0.15,
     critMultiplier: 2.2,
     armorPenetration: 10,
-    statusEffects: [{ type: 'burn', duration: 3, damage: 2 }],
-    knockback: 5
+    statusEffects: [{ type: 'burn', target: 'enemy', duration: 3, damage: 2 }],
+    knockback: 5,
+    phase: 1
   },
   { 
     id: 2, 
@@ -700,13 +699,13 @@ const attackLibrary = [
     manaCost: 8, 
     cooldown: 2.5, 
     availability: true,
-    // Damage options
     damageType: 'ice',
-    critChance: 0.12, // 12%
+    critChance: 0.12,
     critMultiplier: 1.8,
     armorPenetration: 15,
-    statusEffects: [{ type: 'slow', duration: 4, speedReduction: 0.5 }],
-    knockback: 3
+    statusEffects: [{ type: 'slow', target: 'enemy', duration: 4, speedReduction: 0.1 }],
+    knockback: 3,
+    phase: 1
   },
   { 
     id: 3, 
@@ -718,13 +717,13 @@ const attackLibrary = [
     manaCost: 15, 
     cooldown: 4, 
     availability: true,
-    // Damage options
     damageType: 'lightning',
-    critChance: 0.20, // 20%
+    critChance: 0.20,
     critMultiplier: 2.5,
     armorPenetration: 25,
-    statusEffects: [{ type: 'stun', duration: 1.5 }],
-    knockback: 8
+    statusEffects: [{ type: 'stun', target: 'enemy', duration: 5 }],
+    knockback: 8,
+    phase: 1
   },
   { 
     id: 4, 
@@ -736,12 +735,12 @@ const attackLibrary = [
     manaCost: 12, 
     cooldown: 5, 
     availability: true,
-    // Healing options
     damageType: 'healing',
-    critChance: 0.10, // 10% for bonus healing
+    critChance: 0.10,
     critMultiplier: 1.5,
-    statusEffects: [{ type: 'regeneration', duration: 5, healing: 2 }],
-    knockback: 0
+    statusEffects: [{ type: 'regeneration', target: 'self', duration: 5, healing: 2 }],
+    knockback: 0,
+    phase: 1
   },
   { 
     id: 5, 
@@ -753,12 +752,12 @@ const attackLibrary = [
     manaCost: 5, 
     cooldown: 3, 
     availability: true,
-    // Shield options
     damageType: 'defense',
     shieldAmount: 15,
     duration: 10,
-    statusEffects: [{ type: 'shield', duration: 10, absorption: 15 }],
-    knockback: 0
+    statusEffects: [{ type: 'shield', target: 'self', duration: 10, absorption: 15 }],
+    knockback: 0,
+    phase: 2
   },
   { 
     id: 6, 
@@ -770,13 +769,13 @@ const attackLibrary = [
     manaCost: 6, 
     cooldown: 2, 
     availability: true,
-    // Damage options
     damageType: 'poison',
-    critChance: 0.08, // 8%
+    critChance: 0.08,
     critMultiplier: 1.6,
-    armorPenetration: 30, // Poison ignores some armor
-    statusEffects: [{ type: 'poison', duration: 6, damage: 3 }],
-    knockback: 1
+    armorPenetration: 30,
+    statusEffects: [{ type: 'poison', target: 'enemy', duration: 6, damage: 3 }],
+    knockback: 1,
+    phase: 2
   },
   { 
     id: 7, 
@@ -788,14 +787,14 @@ const attackLibrary = [
     manaCost: 20, 
     cooldown: 6, 
     availability: true,
-    // Damage options
     damageType: 'earth',
-    critChance: 0.25, // 25%
+    critChance: 0.25,
     critMultiplier: 2.0,
     armorPenetration: 5,
-    statusEffects: [{ type: 'knockdown', duration: 2 }],
+    statusEffects: [{ type: 'knockdown', target: 'enemy', duration: 2 }],
     knockback: 12,
-    areaOfEffect: true // Hits multiple targets
+    areaOfEffect: true,
+    phase: 2
   },
   { 
     id: 8, 
@@ -807,13 +806,13 @@ const attackLibrary = [
     manaCost: 8, 
     cooldown: 2, 
     availability: true,
-    // Damage options
     damageType: 'wind',
-    critChance: 0.18, // 18%
+    critChance: 0.18,
     critMultiplier: 2.1,
     armorPenetration: 20,
     statusEffects: [],
-    knockback: 6
+    knockback: 6,
+    phase: 2
   },
   { 
     id: 9, 
@@ -825,12 +824,12 @@ const attackLibrary = [
     manaCost: 10, 
     cooldown: 4, 
     availability: true,
-    // Shield options
     damageType: 'fire',
     shieldAmount: 20,
-    reflectDamage: 5, // Damages attackers
-    statusEffects: [{ type: 'fire_shield', duration: 8, reflection: 5 }],
-    knockback: 0
+    reflectDamage: 5,
+    statusEffects: [{ type: 'fire_shield', target: 'self', duration: 8, reflection: 5 }],
+    knockback: 0,
+    phase: 3
   },
   { 
     id: 10, 
@@ -842,13 +841,13 @@ const attackLibrary = [
     manaCost: 12, 
     cooldown: 3.5, 
     availability: true,
-    // Damage options
     damageType: 'arcane',
-    critChance: 0.22, // 22%
+    critChance: 0.22,
     critMultiplier: 2.3,
-    armorPenetration: 35, // Arcane pierces magical defenses
-    statusEffects: [{ type: 'mana_burn', duration: 3, manaDrain: 5 }],
-    knockback: 4
+    armorPenetration: 35,
+    statusEffects: [{ type: 'mana_burn', target: 'enemy', duration: 3, manaDrain: 5 }],
+    knockback: 4,
+    phase: 3
   },
   { 
     id: 11, 
@@ -860,13 +859,13 @@ const attackLibrary = [
     manaCost: 10, 
     cooldown: 4, 
     availability: true,
-    // Healing options
     damageType: 'healing',
-    critChance: 0.15, // 15%
+    critChance: 0.15,
     critMultiplier: 1.8,
-    statusEffects: [{ type: 'healing_over_time', duration: 4, healing: 3 }],
+    statusEffects: [{ type: 'healing_over_time', target: 'self', duration: 4, healing: 3 }],
     knockback: 0,
-    areaOfEffect: true // Heals multiple allies
+    areaOfEffect: true,
+    phase: 3
   },
   { 
     id: 12, 
@@ -878,13 +877,13 @@ const attackLibrary = [
     manaCost: 18, 
     cooldown: 5, 
     availability: true,
-    // Damage options
     damageType: 'shadow',
-    critChance: 0.30, // 30% - high crit
+    critChance: 0.30,
     critMultiplier: 2.8,
-    armorPenetration: 40, // Shadow ignores armor
-    statusEffects: [{ type: 'fear', duration: 2 }],
-    knockback: 2
+    armorPenetration: 40,
+    statusEffects: [{ type: 'fear', target: 'enemy', duration: 2 }],
+    knockback: 2,
+    phase: 3
   },
   { 
     id: 13, 
@@ -896,17 +895,17 @@ const attackLibrary = [
     manaCost: 25, 
     cooldown: 7, 
     availability: true,
-    // Damage options
     damageType: 'lightning',
-    critChance: 0.28, // 28%
+    critChance: 0.28,
     critMultiplier: 3.0,
     armorPenetration: 20,
     statusEffects: [
-      { type: 'chain_lightning', duration: 1, jumps: 3 },
-      { type: 'paralysis', duration: 2 }
+      { type: 'chain_lightning', target: 'enemy', duration: 1, jumps: 3 },
+      { type: 'paralysis', target: 'enemy', duration: 2 }
     ],
     knockback: 10,
-    areaOfEffect: true
+    areaOfEffect: true,
+    phase: 3
   },
   { 
     id: 14, 
@@ -918,18 +917,19 @@ const attackLibrary = [
     manaCost: 20, 
     cooldown: 6, 
     availability: true,
-    // Healing options
     damageType: 'holy',
-    critChance: 0.20, // 20%
+    critChance: 0.20,
     critMultiplier: 2.0,
     statusEffects: [
-      { type: 'blessing', duration: 10, damageReduction: 0.2 },
-      { type: 'purify', duration: 1 } // Removes debuffs
+      { type: 'blessing', target: 'self', duration: 10, damageReduction: 0.2 },
+      { type: 'purify', target: 'self', duration: 1 }
     ],
     knockback: 0,
-    areaOfEffect: true
+    areaOfEffect: true,
+    phase: 3
   }
 ];
+
 
 
 class Attack {
@@ -1328,6 +1328,7 @@ const StatusEffectRegistry = {
       target.canAttack = true;
       console.log(`${target.name} recovered from stun.`);
     }
+    
   },
 
   // ☠️ Poison (damage over time, weaker than burn but longer)
@@ -1500,44 +1501,60 @@ const StatusEffectRegistry = {
 };
 
 
-function updateStatusEffects(target, deltaTime) {
+function updateStatusEffects(target, deltaTimeSec) {
   if (!target.statusEffects || target.statusEffects.length === 0) return;
 
-  const now = Date.now();
+  const nowMs = Date.now();
 
   target.statusEffects = target.statusEffects.filter(effect => {
     const effectDef = StatusEffectRegistry[effect.type];
     if (!effectDef) return false; // unknown effect
 
-    // Tick-based effects
-    if (effect.tickInterval && now - effect.lastTick >= effect.tickInterval) {
-      effectDef.onTick(target, effect);
-      effect.lastTick = now;
+    // Tick-based effects (tickInterval stored in SECONDS)
+    if (effect.tickInterval) {
+      const elapsed = (nowMs - effect.lastTick) / 1000; // convert to seconds
+      if (elapsed >= effect.tickInterval) {
+        if (typeof effectDef.onTick === "function") {
+          effectDef.onTick(target, effect);
+        }
+        effect.lastTick = nowMs;
+      }
     }
 
-    // Decrease duration
-    effect.duration -= deltaTime;
-
+    // Decrease duration (already in seconds)
+    effect.duration -= deltaTimeSec;
+    
     if (effect.duration <= 0) {
-      effectDef.onExpire(target, effect);
-      return false;
+      if (typeof effectDef.onExpire === "function") {
+        effectDef.onExpire(target, effect);
+      }
+      return false; // remove expired
     }
-
-    return true;
+    
+    return true; // keep
   });
 }
-function applyStatusEffect(target, effect) {
+function applyStatusEffect(target, effectSpec) {
   if (!target.statusEffects) target.statusEffects = [];
 
-  const effectDef = StatusEffectRegistry[effect.type];
+  const effectDef = StatusEffectRegistry[effectSpec.type];
   if (!effectDef) {
-    console.warn("Unknown effect:", effect.type);
+    console.warn("Unknown effect:", effectSpec.type);
     return;
   }
 
-  effect.lastTick = Date.now();
+  // Clone effect so you don’t mutate the source object
+  const effect = {
+    ...effectSpec,
+    duration: effectSpec.duration, // seconds
+    lastTick: Date.now()
+  };
+
+  if (typeof effectDef.onApply === "function") {
+    effectDef.onApply(target, effect);
+  }
+
   target.statusEffects.push(effect);
-  effectDef.onApply(target, effect);
 }
 
 
@@ -1753,51 +1770,68 @@ class BossNew {
   }
   
   performAttack() {
-    const distanceToPlayer = this.getDistanceToPlayer();
-    
-    if (distanceToPlayer <= this.attackRange) {
-      console.log(`${this.name} attacks player!`);
-      
-      let availableAttacks = attackLibrary.filter(a => {
-        // Phase unlocks
-        if (this.currentPhase === 1 && a.phase && a.phase > 1) return false;
-        if (this.currentPhase === 2 && a.phase && a.phase > 2) return false;
-        // Range logic
-        if (a.range < distanceToPlayer) return false;
-        return true;
-    });
+    const chosen = this.chooseAttack();
+  if (!chosen) return;
 
-    if (availableAttacks.length === 0) return;
-    const chosen = availableAttacks[Math.floor(Math.random() * availableAttacks.length)];
+  console.log(`${this.name} uses ${chosen.name}!`);
 
-    console.log(`${this.name} uses ${chosen.name}!`);
-      // Different attacks based on phase
-      let attackDamage = this.damage;
-      let statusEffects = [];
-      
-      if (this.currentPhase === 2) {
-        // Phase 2: Add burn effect
-        statusEffects.push({ type: 'burn', duration: 3, damage: 2 });
-      } else if (this.currentPhase === 3) {
-        // Phase 3: Add burn and stun
-        statusEffects.push({ type: 'burn', duration: 4, damage: 3 });
-        if (Math.random() < 0.3) { // 30% chance to stun
-          statusEffects.push({ type: 'stun', duration: 1 });
-        }
-      }
-      
-      // Apply damage to player
-      applyDamage(player, attackDamage, {
-        damageType: 'physical',
-        statusEffects: statusEffects,
-        knockback: 5,
-        onDamageCallback: (target, info) => {
-          console.log(`${this.name} hits ${target.name} for ${info.finalDamage} damage!`);
-        }
-      });
+  applyDamage(player, chosen.damage, {
+    damageType: chosen.damageType,
+    statusEffects: chosen.statusEffects || [],
+    knockback: chosen.knockback || 0,
+    critChance: chosen.critChance || 0,
+    critMultiplier: chosen.critMultiplier || 1.5,
+    onDamageCallback: (target, info) => {
+      console.log(`${this.name} hits ${target.name} with ${chosen.name} for ${info.finalDamage} damage!`);
     }
+  });
+
+  this.lastAttackTime = Date.now();
   }
-  
+chooseAttack() {
+  const distanceToPlayer = this.getDistanceToPlayer();
+
+  // Step 1: filter out invalid attacks
+  let validAttacks = attackLibrary.filter(a => {
+    // Phase restrictions
+    if (this.currentPhase === 1 && a.phase && a.phase > 1) return false;
+    if (this.currentPhase === 2 && a.phase && a.phase > 2) return false;
+
+    // Never melee at long range
+    if (a.type === "melee" && a.range < distanceToPlayer) return false;
+
+    return true;
+  });
+
+  if (validAttacks.length === 0) return null;
+
+  // Step 2: assign weights
+  const weights = validAttacks.map(a => {
+    if (a.type === "melee") {
+      return distanceToPlayer < 200 ? 5 : 1; // strong bias close range
+    } else if (a.range >= 600) {
+      return distanceToPlayer > 400 ? 4 : 2; // nukes more likely far away
+    } else {
+      return 3; // balanced mid-range
+    }
+  });
+
+  // Step 3: surprise chance (10%)
+  if (Math.random() < 0.1) {
+    return validAttacks[Math.floor(Math.random() * validAttacks.length)];
+  }
+
+  // Step 4: weighted pick
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < validAttacks.length; i++) {
+    if (r < weights[i]) return validAttacks[i];
+    r -= weights[i];
+  }
+
+  return validAttacks[0];
+}
+ 
   takeDamage(damage, options = {}) {
     if (this.isInvulnerable) {
       console.log(`${this.name} is invulnerable!`);

@@ -644,14 +644,41 @@ class BossNew {
   // Decide how to resolve it
   const isProjectile = (chosen.type === "damageDealer" && (chosen.range ?? 0) > 1);
 
-  if (isProjectile) {
-    // Projectile: add to global activeAttacks so the game loop handles movement/collision
-    activeAttacks.push(attack);
+if (isProjectile) {
+  // Projectile attack (handled by movement/collision system)
+  activeAttacks.push(attack);
+
+} else {
+  // Split damage vs buffs/debuffs
+  if (attack.type === "damageDealer") {
+    const meleeRange = 50; // tweak to taste
+    const dx = player.x - boss.x;
+    const dy = Math.abs(player.y - boss.y);
+
+    let inFront = false;
+
+    if (boss.facing === "right" && dx > 0 && dx < meleeRange && dy < 30) {
+      inFront = true;
+    } else if (boss.facing === "left" && dx < 0 && Math.abs(dx) < meleeRange && dy < 30) {
+      inFront = true;
+    }
+
+    if (inFront) {
+      attack.applyEffects(player);
+      console.log("✅ Boss melee hit landed!");
+    } else {
+      console.log("❌ Boss melee missed (player not in range).");
+    }
+
   } else {
-    // Instant hit (melee, buffs, debuffs, heals, etc.)
-    attack.applyEffects(player);  // your Attack class should handle status effects, damage, etc.
-    attack.destroy();
+    // Buffs, debuffs, heals, status effects → always apply
+    attack.applyEffects(player);
+    console.log("✨ Buff/debuff applied regardless of range");
   }
+
+  attack.destroy();
+}
+
 
   this.lastAttackTime = Date.now();
 }
@@ -1116,12 +1143,12 @@ const attackLibrary = [
     name: "Melee", 
     type: "damageDealer", 
     damage: 5, 
-    range: 1000, 
+    range: 5, 
     castDuration: 0, 
     manaCost: 0, 
     cooldown: 0, 
     availability: true, 
-    imageSrc:'background.jpg', 
+    // imageSrc:'background.jpg', 
     framesX:8, 
     imgWidth:576, 
     imgHeight:72,
@@ -1131,25 +1158,34 @@ const attackLibrary = [
     armorPenetration: 0,
     statusEffects: [],
     knockback: 2,
-    phase: 1
+    phase: 2
   },
   { 
     id: 1, 
     name: "Fireball", 
     type: "damageDealer", 
     damage: 20, 
-    range: 15, 
+    range: 300, 
     castDuration: 1.5, 
     manaCost: 10, 
     cooldown: 3, 
     availability: true,
+    imageSrc:'Resources/attack/Magic/fireball_0.png', 
     damageType: 'fire',
     critChance: 0.15,
     critMultiplier: 2.2,
     armorPenetration: 10,
     statusEffects: [{ type: 'burn', target: 'enemy', duration: 3, damage: 2 }],
     knockback: 5,
-    phase: 2
+    phase: 1,
+    imgWidth:512,
+    imgHeight:512,
+    framesX:8,
+    framesY:8,
+    framePicked:4,
+    homing:false,
+    homingDuration:50
+
   },
   { 
     id: 2, 
@@ -1167,7 +1203,7 @@ const attackLibrary = [
     armorPenetration: 15,
     statusEffects: [{ type: 'slow', target: 'enemy', duration: 5, speedReduction: 0.1}],
     knockback: 3,
-    phase: 1
+    phase: 2
   },
   { 
     id: 3, 
@@ -1185,7 +1221,8 @@ const attackLibrary = [
     armorPenetration: 25,
     statusEffects: [{ type: 'stun', target: 'enemy', duration: 50 }],
     knockback: 8,
-    phase: 1
+    phase: 2,
+    
   },
   { 
     id: 4, 
@@ -1202,7 +1239,7 @@ const attackLibrary = [
     critMultiplier: 1.5,
     statusEffects: [{ type: 'regeneration', target: 'self', duration: 5, healing: 2 }],
     knockback: 0,
-    phase: 1
+    phase: 2
   },
   { 
     id: 5, 
@@ -1219,7 +1256,7 @@ const attackLibrary = [
     duration: 10,
     statusEffects: [{ type: 'shield', target: 'self', duration: 10, absorption: 15 }],
     knockback: 0,
-    phase:1
+    phase:2
   },
   { 
     id: 6, 
@@ -1237,7 +1274,7 @@ const attackLibrary = [
     armorPenetration: 30,
     statusEffects: [{ type: 'poison', target: 'enemy', duration: 6, damage: 3 }],
     knockback: 1,
-    phase: 1
+    phase: 2
   },
   { 
     id: 7, 
@@ -1256,7 +1293,7 @@ const attackLibrary = [
     statusEffects: [{ type: 'knockdown', target: 'enemy', duration: 2 }],
     knockback: 12,
     areaOfEffect: true,
-    phase: 1
+    phase: 2
   },
   { 
     id: 8, 
@@ -1274,7 +1311,7 @@ const attackLibrary = [
     armorPenetration: 20,
     statusEffects: [],
     knockback: 6,
-    phase: 1
+    phase: 2
   },
   { 
     id: 9, 
@@ -1291,7 +1328,7 @@ const attackLibrary = [
     reflectDamage: 5,
     statusEffects: [{ type: 'fire_shield', target: 'self', duration: 8, reflection: 5 }],
     knockback: 0,
-    phase: 1
+    phase: 2
   },
   { 
     id: 10, 
@@ -1309,7 +1346,7 @@ const attackLibrary = [
     armorPenetration: 35,
     statusEffects: [{ type: 'mana_burn', target: 'enemy', duration: 3, manaDrain: 5 }],
     knockback: 4,
-    phase: 1
+    phase: 2
   },
   { 
     id: 11, 
@@ -1327,7 +1364,7 @@ const attackLibrary = [
     statusEffects: [{ type: 'healing_over_time', target: 'self', duration: 4, healing: 3 }],
     knockback: 0,
     areaOfEffect: true,
-    phase: 1
+    phase: 2
   },
   { 
     id: 12, 
@@ -1345,7 +1382,7 @@ const attackLibrary = [
     armorPenetration: 40,
     statusEffects: [{ type: 'fear', target: 'enemy', duration: 2 }],
     knockback: 2,
-    phase: 1
+    phase: 2
   },
   { 
     id: 13, 
@@ -1367,7 +1404,7 @@ const attackLibrary = [
     ],
     knockback: 10,
     areaOfEffect: true,
-    phase: 1
+    phase: 2
   },
   { 
     id: 14, 
@@ -1388,7 +1425,35 @@ const attackLibrary = [
     ],
     knockback: 0,
     areaOfEffect: true,
-    phase: 1
+    phase: 2
+  },
+  { 
+    id: 15, 
+    name: "beam", 
+    type: "damageDealer", 
+    damage: 5, 
+    range: 500, 
+    castDuration: 5, 
+    manaCost: 20, 
+    cooldown: 30, 
+    availability: true, 
+    imageSrc:'Resources/attack/Magic/beam.png', 
+    damageType: 'fire',
+    critChance: 0.15,
+    critMultiplier: 2.2,
+    armorPenetration: 10,
+    statusEffects: [{ type: 'burn', target: 'enemy', duration: 3, damage: 2 }],
+    knockback: 5,
+    phase: 2,
+    imgWidth:576,
+    imgHeight:72,
+    framesX:8,
+    framesY:1,
+    framePicked:0,
+    homing:false,
+    homingDuration:null,
+    length:500
+
   }
 ];
 
@@ -1402,26 +1467,49 @@ class Attack {
     }
 
     this.caster = caster;  // who launched it
-    this.target = target;  // who it’s aimed at
+    this.target = target;  // who it's aimed at
 
     this.isVisible = true;
+    this.homing = this.homing ?? false; // Default to non-homing if not specified
+    this.homingDuration=this.homingDuration
 
     // Projectile properties
     this.x = caster.x;
     this.y = caster.y;
     this.targetX = target ? target.x : null;
     this.targetY = target ? target.y : null;
-    this.acceleration = 10;
+    this.acceleration = 40;
     this.vx = 0;
     this.vy = 0;
+    this.scale = 3
+    // Calculate initial direction for non-homing projectiles
+    if (target) {
+      let dx = this.targetX - this.x;
+      let dy = this.targetY - this.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      
+      // Set initial velocity for non-homing projectiles
+      if (!this.homing && dist > 0) {
+        this.vx = (dx / dist) * this.acceleration;
+        this.vy = (dy / dist) * this.acceleration;
+      }
+    }
+
+    // Angle in radians between caster and target
+    this.rotation = Math.atan2(
+      this.targetY - this.y,
+      this.targetX - this.x
+    );
 
     // Animation
     this.image = new Image();
     this.imageLoaded = false;
     this.imageError = false;
     this.framesX = this.framesX || 1;
+    this.framesY = this.framesY || 1;
     this.imgWidth = this.imgWidth || 32;
     this.imgHeight = this.imgHeight || 32;
+    this.framePicked = this.framePicked || 0;
     this.frameIndex = 0;
     this.frameElapsed = 0;
     this.frameHold = 5;
@@ -1434,11 +1522,7 @@ class Attack {
   }
 
   update() {
-    if (!this.isVisible || !this.target) return;
-
-    let dx = this.target.x - this.x;
-    let dy = this.target.y - this.y;
-    let dist = Math.sqrt(dx * dx + dy * dy);
+    if (!this.isVisible) return;
 
     // Range check
     let startDist = Math.sqrt(
@@ -1449,22 +1533,38 @@ class Attack {
       return;
     }
 
-    // Collision check
-    if (dist < 20) { // hitbox size
-      this.applyEffects(this.target);
-      this.destroy();
-      return;
+    // Collision check with target (if exists)
+    if (this.target) {
+      let dx = this.target.x - this.x;
+      let dy = this.target.y - this.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < 20) { // hitbox size
+        this.applyEffects(this.target);
+        this.destroy();
+        return;
+      }
+
+      // Movement logic - different for homing vs non-homing
+      if (this.homing && this.homingDuration>0) {
+        // Homing projectiles: recalculate direction each frame
+        if (dist > 1) {
+          let dirX = dx / dist;
+          let dirY = dy / dist;
+          this.vx = dirX * this.acceleration;
+          this.vy = dirY * this.acceleration;
+          
+          // Update rotation for homing projectiles
+          this.rotation = Math.atan2(dy, dx);
+          this.homingDuration--
+        }
+      }
+      // Non-homing projectiles keep their initial velocity (set in constructor)
     }
 
-    // Move toward target
-    if (dist > 1) {
-      let dirX = dx / dist;
-      let dirY = dy / dist;
-      this.vx = dirX * this.acceleration;
-      this.vy = dirY * this.acceleration;
-      this.x += this.vx;
-      this.y += this.vy;
-    }
+    // Move the projectile
+    this.x += this.vx;
+    this.y += this.vy;
 
     // Animate
     this.frameElapsed++;
@@ -1492,15 +1592,14 @@ class Attack {
 
     // Status effects
     if (this.statusEffects && this.statusEffects.length > 0) {
-    this.statusEffects.forEach(effect => {
+      this.statusEffects.forEach(effect => {
         if (effect.target === "enemy" && target.statusEffects) {
-        applyStatusEffect(target, { ...effect });
+          applyStatusEffect(target, { ...effect });
         } else if (effect.target === "self" && this.caster.statusEffects) {
-        applyStatusEffect(this.caster, { ...effect });
+          applyStatusEffect(this.caster, { ...effect });
         }
-    });
+      });
     }
-
 
     console.log(`${this.caster.name} hit ${target.name} with ${this.name}!`);
   }
@@ -1515,17 +1614,29 @@ class Attack {
 
     if (this.imageLoaded && !this.imageError) {
       const frameWidth = this.imgWidth / this.framesX;
+      const frameHeight = this.imgHeight / this.framesY;
+
+      const centerX = this.x + (frameWidth * this.scale) / 2;
+      const centerY = this.y + (frameHeight * this.scale) / 2;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(this.rotation);  // make it point toward target
+      ctx.translate(-centerX, -centerY);
+
       ctx.drawImage(
         this.image,
         this.frameIndex * frameWidth,
-        0,
+        this.framePicked * frameHeight,
         frameWidth,
-        this.imgHeight,
+        frameHeight,
         this.x,
         this.y,
-        frameWidth,
-        this.imgHeight
+        frameWidth * this.scale,
+        frameHeight * this.scale
       );
+      
+      ctx.restore();
     } else {
       ctx.fillStyle = "green";
       ctx.fillRect(this.x, this.y, 20, 20);
@@ -2000,3 +2111,636 @@ function applyStatusEffect(target, effectSpec) {
 }
 
 
+
+class Movement {
+  constructor(entity, pattern, params = {}) {
+    this.entity = entity;
+    this.pattern = pattern;
+    this.params = { ...this.getDefaultParams(pattern), ...params };
+    
+    // Common state variables
+    this.isActive = true;
+    this.timeElapsed = 0;
+    this.phase = 0; // For multi-phase movements
+    this.phaseTimer = 0;
+    this.initialX = entity.x;
+    this.initialY = entity.y;
+    this.targetX = null;
+    this.targetY = null;
+    this.originalSpeed = entity.speed || 2;
+    
+    // Pattern-specific initialization
+    this.initializePattern();
+  }
+
+  getDefaultParams(pattern) {
+    const defaults = {
+      // Basic Movement
+      straightChase: { speed: 3, acceleration: 0.1 },
+      strafe: { radius: 100, speed: 2, clockwise: true },
+      dashForward: { dashSpeed: 8, dashDuration: 30, cooldown: 60 },
+      backstep: { stepDistance: 50, stepSpeed: 6, duration: 20 },
+      zigzagRush: { amplitude: 30, frequency: 0.1, baseSpeed: 2 },
+      sideDash: { dashDistance: 80, dashSpeed: 7, direction: 1 },
+
+      // Aggressive
+      orbitLunge: { orbitRadius: 120, orbitSpeed: 2, lungeSpeed: 10, orbitTime: 120 },
+      teleportStrike: { teleportRange: 80, strikePause: 15, fadeTime: 10 },
+      fakeOutDash: { fakeDistance: 60, fakeSpeed: 5, realSpeed: 8, pauseTime: 20 },
+      chargeThrough: { chargeSpeed: 12, chargeDuration: 60, windup: 30 },
+      jumpSlam: { jumpHeight: 100, jumpDuration: 45, slamSpeed: 15 },
+      multiDashCombo: { dashCount: 3, dashSpeed: 9, dashDistance: 70, pauseBetween: 15 },
+
+      // Defensive
+      mirageCloneDash: { cloneCount: 3, dashSpeed: 6, cloneDuration: 40 },
+      warpBackwards: { warpDistance: 100, triggerHealth: 0.5 },
+      evadeChain: { evadeCount: 4, evadeDistance: 40, evadeSpeed: 8, chainDelay: 8 },
+      wallRun: { wallDistance: 150, runSpeed: 4, jumpOffSpeed: 7 },
+
+      // Unnatural
+      hoverGlide: { hoverHeight: 50, glideSpeed: 1.5, floatAmplitude: 10 },
+      spiralDash: { spiralRadius: 80, spiralSpeed: 3, spiralTightening: 0.98 },
+      erraticBlink: { blinkCount: 5, blinkRange: 60, settleTime: 30 },
+      shadowCrawl: { crawlSpeed: 4, undergroundTime: 45, emergeDistance: 30 },
+      gravityFlip: { flipDuration: 60, floatHeight: 120, crashSpeed: 12 },
+      orbitRain: { orbitRadius: 200, orbitHeight: 150, dropSpeed: 10 },
+
+      // Psychological
+      tauntStagger: { staggerTime: 40, rushDelay: 20, rushSpeed: 8 },
+      delayedDash: { windupTime: 30, pauseTime: 15, dashSpeed: 10 },
+      trackingFakeOut: { trackingTime: 45, redirectAngle: 90, finalSpeed: 7 }
+    };
+    
+    return defaults[pattern] || {};
+  }
+
+  initializePattern() {
+    const player = this.getPlayer(); // Assume this exists
+    
+    switch(this.pattern) {
+      case 'strafe':
+        this.angle = Math.atan2(this.entity.y - player.y, this.entity.x - player.x);
+        break;
+      case 'orbitLunge':
+        this.angle = 0;
+        this.isOrbiting = true;
+        break;
+      case 'teleportStrike':
+        this.isTeleporting = false;
+        this.strikeTarget = { x: player.x, y: player.y };
+        break;
+      case 'spiralDash':
+        this.currentRadius = this.params.spiralRadius;
+        this.angle = 0;
+        break;
+      case 'multiDashCombo':
+        this.currentDash = 0;
+        this.dashDirection = Math.random() * Math.PI * 2;
+        break;
+      case 'evadeChain':
+        this.currentEvade = 0;
+        break;
+    }
+  }
+
+  update() {
+    if (!this.isActive) return;
+    
+    this.timeElapsed++;
+    this.phaseTimer++;
+    
+    const player = this.getPlayer();
+    if (!player) return;
+
+    switch(this.pattern) {
+      case 'straightChase':
+        this.updateStraightChase(player);
+        break;
+      case 'strafe':
+        this.updateStrafe(player);
+        break;
+      case 'dashForward':
+        this.updateDashForward(player);
+        break;
+      case 'backstep':
+        this.updateBackstep(player);
+        break;
+      case 'zigzagRush':
+        this.updateZigzagRush(player);
+        break;
+      case 'sideDash':
+        this.updateSideDash(player);
+        break;
+      case 'orbitLunge':
+        this.updateOrbitLunge(player);
+        break;
+      case 'teleportStrike':
+        this.updateTeleportStrike(player);
+        break;
+      case 'fakeOutDash':
+        this.updateFakeOutDash(player);
+        break;
+      case 'chargeThrough':
+        this.updateChargeThrough(player);
+        break;
+      case 'jumpSlam':
+        this.updateJumpSlam(player);
+        break;
+      case 'multiDashCombo':
+        this.updateMultiDashCombo(player);
+        break;
+      case 'mirageCloneDash':
+        this.updateMirageCloneDash(player);
+        break;
+      case 'warpBackwards':
+        this.updateWarpBackwards(player);
+        break;
+      case 'evadeChain':
+        this.updateEvadeChain(player);
+        break;
+      case 'hoverGlide':
+        this.updateHoverGlide(player);
+        break;
+      case 'spiralDash':
+        this.updateSpiralDash(player);
+        break;
+      case 'erraticBlink':
+        this.updateErraticBlink(player);
+        break;
+      case 'shadowCrawl':
+        this.updateShadowCrawl(player);
+        break;
+      case 'gravityFlip':
+        this.updateGravityFlip(player);
+        break;
+      case 'tauntStagger':
+        this.updateTauntStagger(player);
+        break;
+      case 'delayedDash':
+        this.updateDelayedDash(player);
+        break;
+      case 'trackingFakeOut':
+        this.updateTrackingFakeOut(player);
+        break;
+    }
+  }
+
+  // Basic Movement Patterns
+  updateStraightChase(player) {
+    const dx = player.x - this.entity.x;
+    const dy = player.y - this.entity.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist > 1) {
+      const moveX = (dx / dist) * this.params.speed;
+      const moveY = (dy / dist) * this.params.speed;
+      this.entity.x += moveX;
+      this.entity.y += moveY;
+    }
+  }
+
+  updateStrafe(player) {
+    const centerX = player.x;
+    const centerY = player.y;
+    
+    this.angle += (this.params.clockwise ? 1 : -1) * this.params.speed * 0.05;
+    
+    this.entity.x = centerX + Math.cos(this.angle) * this.params.radius;
+    this.entity.y = centerY + Math.sin(this.angle) * this.params.radius;
+  }
+
+  updateDashForward(player) {
+    if (this.phase === 0) { // Dash phase
+      if (this.phaseTimer === 1) {
+        const dx = player.x - this.entity.x;
+        const dy = player.y - this.entity.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        this.dashVx = (dx / dist) * this.params.dashSpeed;
+        this.dashVy = (dy / dist) * this.params.dashSpeed;
+      }
+      
+      this.entity.x += this.dashVx;
+      this.entity.y += this.dashVy;
+      
+      if (this.phaseTimer >= this.params.dashDuration) {
+        this.phase = 1;
+        this.phaseTimer = 0;
+      }
+    } else { // Cooldown phase
+      if (this.phaseTimer >= this.params.cooldown) {
+        this.phase = 0;
+        this.phaseTimer = 0;
+      }
+    }
+  }
+
+  updateBackstep(player) {
+    if (this.phaseTimer <= this.params.duration) {
+      const dx = player.x - this.entity.x;
+      const dy = player.y - this.entity.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist > 0) {
+        // Move away from player
+        const moveX = -(dx / dist) * this.params.stepSpeed;
+        const moveY = -(dy / dist) * this.params.stepSpeed;
+        this.entity.x += moveX;
+        this.entity.y += moveY;
+      }
+    } else {
+      this.isActive = false;
+    }
+  }
+
+  updateZigzagRush(player) {
+    const dx = player.x - this.entity.x;
+    const dy = player.y - this.entity.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist > 1) {
+      const baseX = (dx / dist) * this.params.baseSpeed;
+      const baseY = (dy / dist) * this.params.baseSpeed;
+      
+      // Add zigzag offset
+      const zigzagOffset = Math.sin(this.timeElapsed * this.params.frequency) * this.params.amplitude;
+      const perpX = -baseY;
+      const perpY = baseX;
+      const perpLength = Math.sqrt(perpX * perpX + perpY * perpY);
+      
+      if (perpLength > 0) {
+        this.entity.x += baseX + (perpX / perpLength) * zigzagOffset * 0.1;
+        this.entity.y += baseY + (perpY / perpLength) * zigzagOffset * 0.1;
+      }
+    }
+  }
+
+  updateSideDash(player) {
+    if (this.phaseTimer === 1) {
+      const dx = player.x - this.entity.x;
+      const dy = player.y - this.entity.y;
+      
+      // Calculate perpendicular direction
+      const perpX = -dy * this.params.direction;
+      const perpY = dx * this.params.direction;
+      const perpLength = Math.sqrt(perpX * perpX + perpY * perpY);
+      
+      if (perpLength > 0) {
+        this.dashVx = (perpX / perpLength) * this.params.dashSpeed;
+        this.dashVy = (perpY / perpLength) * this.params.dashSpeed;
+      }
+    }
+    
+    if (this.phaseTimer <= 20) {
+      this.entity.x += this.dashVx;
+      this.entity.y += this.dashVy;
+    } else {
+      this.isActive = false;
+    }
+  }
+
+  // Aggressive Patterns
+  updateOrbitLunge(player) {
+    if (this.isOrbiting && this.timeElapsed < this.params.orbitTime) {
+      this.angle += this.params.orbitSpeed * 0.05;
+      this.entity.x = player.x + Math.cos(this.angle) * this.params.orbitRadius;
+      this.entity.y = player.y + Math.sin(this.angle) * this.params.orbitRadius;
+    } else {
+      // Lunge phase
+      if (this.isOrbiting) {
+        this.isOrbiting = false;
+        const dx = player.x - this.entity.x;
+        const dy = player.y - this.entity.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        this.lungeVx = (dx / dist) * this.params.lungeSpeed;
+        this.lungeVy = (dy / dist) * this.params.lungeSpeed;
+      }
+      
+      this.entity.x += this.lungeVx;
+      this.entity.y += this.lungeVy;
+    }
+  }
+
+  updateTeleportStrike(player) {
+    if (this.phase === 0 && this.phaseTimer >= this.params.fadeTime) {
+      // Teleport near player
+      const angle = Math.random() * Math.PI * 2;
+      this.entity.x = player.x + Math.cos(angle) * this.params.teleportRange;
+      this.entity.y = player.y + Math.sin(angle) * this.params.teleportRange;
+      this.entity.alpha = 0; // Make invisible during teleport
+      this.phase = 1;
+      this.phaseTimer = 0;
+    } else if (this.phase === 1) {
+      // Fade back in and prepare strike
+      this.entity.alpha = Math.min(1, this.phaseTimer / this.params.fadeTime);
+      if (this.phaseTimer >= this.params.strikePause) {
+        this.isActive = false;
+      }
+    }
+  }
+
+  // Add more update methods for remaining patterns...
+  
+  getPlayer() {
+    // This should return the player object from your game
+    // Implementation depends on your game structure
+    return window.player || null;
+  }
+
+  stop() {
+    this.isActive = false;
+  }
+
+  restart() {
+    this.isActive = true;
+    this.timeElapsed = 0;
+    this.phase = 0;
+    this.phaseTimer = 0;
+    this.initializePattern();
+  }
+}
+class MovementCombo {
+  constructor(entity, comboName, customParams = {}) {
+    this.entity = entity;
+    this.comboName = comboName;
+    this.customParams = customParams;
+    
+    // Combo state
+    this.currentMoveIndex = 0;
+    this.currentMovement = null;
+    this.isActive = true;
+    this.isPaused = false;
+    this.comboComplete = false;
+    
+    // Transition settings
+    this.transitionDelay = 0;
+    this.transitionTimer = 0;
+    
+    // Get the combo sequence
+    this.moves = this.getComboSequence(comboName);
+    
+    // Start first movement
+    this.startNextMovement();
+  }
+
+  getComboSequence(comboName) {
+    const combos = {
+      // Short Combos (2-3 moves)
+      'zigzagLunge': [
+        { pattern: 'zigzagRush', params: { amplitude: 40, frequency: 0.12, baseSpeed: 2.5 }, duration: 60 },
+        { pattern: 'dashForward', params: { dashSpeed: 10, dashDuration: 25 }, duration: 40, delay: 5 }
+      ],
+      
+      'backstepTeleport': [
+        { pattern: 'backstep', params: { stepDistance: 60, stepSpeed: 7 }, duration: 30 },
+        { pattern: 'teleportStrike', params: { teleportRange: 70, strikePause: 20 }, duration: 50, delay: 10 }
+      ],
+      
+      'orbitDash': [
+        { pattern: 'strafe', params: { radius: 120, speed: 2.5, clockwise: true }, duration: 80 },
+        { pattern: 'dashForward', params: { dashSpeed: 12, dashDuration: 30 }, duration: 45, delay: 8 }
+      ],
+      
+      'sideDashSlam': [
+        { pattern: 'sideDash', params: { dashDistance: 90, dashSpeed: 8, direction: 1 }, duration: 25 },
+        { pattern: 'jumpSlam', params: { jumpHeight: 120, jumpDuration: 50, slamSpeed: 18 }, duration: 70, delay: 5 }
+      ],
+      
+      'fakeOutCharge': [
+        { pattern: 'fakeOutDash', params: { fakeDistance: 70, fakeSpeed: 6, pauseTime: 25 }, duration: 60 },
+        { pattern: 'chargeThrough', params: { chargeSpeed: 15, chargeDuration: 80, windup: 20 }, duration: 100, delay: 3 }
+      ],
+      
+      'strafeDelayed': [
+        { pattern: 'strafe', params: { radius: 100, speed: 2, clockwise: false }, duration: 70 },
+        { pattern: 'delayedDash', params: { windupTime: 40, pauseTime: 20, dashSpeed: 11 }, duration: 80, delay: 5 }
+      ],
+      
+      'evadeLunge': [
+        { pattern: 'evadeChain', params: { evadeCount: 3, evadeDistance: 50, evadeSpeed: 9 }, duration: 45 },
+        { pattern: 'dashForward', params: { dashSpeed: 13, dashDuration: 20 }, duration: 35, delay: 8 }
+      ],
+      
+      'teleportMirage': [
+        { pattern: 'teleportStrike', params: { teleportRange: 80, strikePause: 15 }, duration: 40 },
+        { pattern: 'mirageCloneDash', params: { cloneCount: 4, dashSpeed: 7, cloneDuration: 50 }, duration: 60, delay: 5 }
+      ],
+
+      // Mid Combos (3-4 moves)
+      'orbitZigzagSlam': [
+        { pattern: 'strafe', params: { radius: 140, speed: 2.2, clockwise: true }, duration: 60 },
+        { pattern: 'zigzagRush', params: { amplitude: 35, frequency: 0.15, baseSpeed: 3 }, duration: 50, delay: 10 },
+        { pattern: 'jumpSlam', params: { jumpHeight: 150, jumpDuration: 55, slamSpeed: 20 }, duration: 75, delay: 8 }
+      ],
+      
+      'backstepTrackingDash': [
+        { pattern: 'backstep', params: { stepDistance: 70, stepSpeed: 8 }, duration: 35 },
+        { pattern: 'trackingFakeOut', params: { trackingTime: 50, redirectAngle: 120, finalSpeed: 8 }, duration: 70, delay: 12 },
+        { pattern: 'dashForward', params: { dashSpeed: 14, dashDuration: 25 }, duration: 40, delay: 5 }
+      ],
+      
+      'erraticSpiralSide': [
+        { pattern: 'erraticBlink', params: { blinkCount: 4, blinkRange: 70, settleTime: 25 }, duration: 60 },
+        { pattern: 'spiralDash', params: { spiralRadius: 90, spiralSpeed: 3.5, spiralTightening: 0.96 }, duration: 65, delay: 8 },
+        { pattern: 'sideDash', params: { dashDistance: 100, dashSpeed: 10, direction: -1 }, duration: 30, delay: 5 }
+      ],
+      
+      'hoverFakeoutLunge': [
+        { pattern: 'hoverGlide', params: { hoverHeight: 60, glideSpeed: 1.8, floatAmplitude: 15 }, duration: 80 },
+        { pattern: 'fakeOutDash', params: { fakeDistance: 80, fakeSpeed: 7, pauseTime: 30 }, duration: 70, delay: 10 },
+        { pattern: 'dashForward', params: { dashSpeed: 15, dashDuration: 20 }, duration: 35, delay: 5 }
+      ],
+      
+      'tauntDelayedTeleport': [
+        { pattern: 'tauntStagger', params: { staggerTime: 50, rushDelay: 25, rushSpeed: 9 }, duration: 75 },
+        { pattern: 'delayedDash', params: { windupTime: 35, pauseTime: 18, dashSpeed: 12 }, duration: 70, delay: 8 },
+        { pattern: 'teleportStrike', params: { teleportRange: 60, strikePause: 12 }, duration: 45, delay: 5 }
+      ],
+      
+      'shadowBackstabCharge': [
+        { pattern: 'shadowCrawl', params: { crawlSpeed: 5, undergroundTime: 50, emergeDistance: 40 }, duration: 70 },
+        { pattern: 'backstep', params: { stepDistance: 30, stepSpeed: 12 }, duration: 15, delay: 5 },
+        { pattern: 'chargeThrough', params: { chargeSpeed: 18, chargeDuration: 60, windup: 15 }, duration: 85, delay: 8 }
+      ],
+
+      // Long Combos (4+ moves)
+      'orbitRainSlamEvadeLunge': [
+        { pattern: 'orbitRain', params: { orbitRadius: 220, orbitHeight: 180, dropSpeed: 12 }, duration: 90 },
+        { pattern: 'jumpSlam', params: { jumpHeight: 140, jumpDuration: 60, slamSpeed: 22 }, duration: 80, delay: 10 },
+        { pattern: 'evadeChain', params: { evadeCount: 4, evadeDistance: 45, evadeSpeed: 10 }, duration: 50, delay: 12 },
+        { pattern: 'dashForward', params: { dashSpeed: 16, dashDuration: 25 }, duration: 40, delay: 8 }
+      ],
+      
+      'wallRunBackstepFakeSpiral': [
+        { pattern: 'wallRun', params: { wallDistance: 160, runSpeed: 5, jumpOffSpeed: 8 }, duration: 70 },
+        { pattern: 'backstep', params: { stepDistance: 80, stepSpeed: 9 }, duration: 40, delay: 8 },
+        { pattern: 'fakeOutDash', params: { fakeDistance: 90, fakeSpeed: 8, pauseTime: 35 }, duration: 80, delay: 10 },
+        { pattern: 'spiralDash', params: { spiralRadius: 100, spiralSpeed: 4, spiralTightening: 0.94 }, duration: 75, delay: 5 }
+      ],
+      
+      'hoverErraticOrbitTeleport': [
+        { pattern: 'hoverGlide', params: { hoverHeight: 80, glideSpeed: 2, floatAmplitude: 20 }, duration: 100 },
+        { pattern: 'erraticBlink', params: { blinkCount: 5, blinkRange: 80, settleTime: 30 }, duration: 75, delay: 12 },
+        { pattern: 'strafe', params: { radius: 130, speed: 3, clockwise: false }, duration: 85, delay: 8 },
+        { pattern: 'teleportStrike', params: { teleportRange: 90, strikePause: 18 }, duration: 50, delay: 10 }
+      ],
+      
+      'zigzagSideTauntDelaySlam': [
+        { pattern: 'zigzagRush', params: { amplitude: 45, frequency: 0.18, baseSpeed: 2.8 }, duration: 65 },
+        { pattern: 'sideDash', params: { dashDistance: 110, dashSpeed: 11, direction: 1 }, duration: 30, delay: 8 },
+        { pattern: 'tauntStagger', params: { staggerTime: 60, rushDelay: 30, rushSpeed: 10 }, duration: 90, delay: 15 },
+        { pattern: 'delayedDash', params: { windupTime: 45, pauseTime: 25, dashSpeed: 13 }, duration: 85, delay: 10 },
+        { pattern: 'jumpSlam', params: { jumpHeight: 160, jumpDuration: 65, slamSpeed: 25 }, duration: 90, delay: 5 }
+      ],
+      
+      'shadowMirageEvadeCharge': [
+        { pattern: 'shadowCrawl', params: { crawlSpeed: 6, undergroundTime: 55, emergeDistance: 50 }, duration: 80 },
+        { pattern: 'mirageCloneDash', params: { cloneCount: 5, dashSpeed: 8, cloneDuration: 60 }, duration: 75, delay: 10 },
+        { pattern: 'evadeChain', params: { evadeCount: 5, evadeDistance: 55, evadeSpeed: 11 }, duration: 60, delay: 8 },
+        { pattern: 'chargeThrough', params: { chargeSpeed: 20, chargeDuration: 70, windup: 25 }, duration: 95, delay: 12 }
+      ],
+      
+      'trackingOrbitLungeGravitySlam': [
+        { pattern: 'trackingFakeOut', params: { trackingTime: 55, redirectAngle: 135, finalSpeed: 9 }, duration: 80 },
+        { pattern: 'strafe', params: { radius: 150, speed: 2.8, clockwise: true }, duration: 90, delay: 10 },
+        { pattern: 'dashForward', params: { dashSpeed: 17, dashDuration: 22 }, duration: 35, delay: 8 },
+        { pattern: 'gravityFlip', params: { flipDuration: 70, floatHeight: 140, crashSpeed: 15 }, duration: 90, delay: 15 },
+        { pattern: 'jumpSlam', params: { jumpHeight: 200, jumpDuration: 75, slamSpeed: 30 }, duration: 100, delay: 5 }
+      ]
+    };
+
+    return combos[comboName] || [];
+  }
+
+  update() {
+    if (!this.isActive || this.isPaused || this.comboComplete) return;
+
+    // Handle transition delay
+    if (this.transitionTimer > 0) {
+      this.transitionTimer--;
+      return;
+    }
+
+    // Update current movement
+    if (this.currentMovement) {
+      this.currentMovement.update();
+      
+      // Check if current movement should end
+      const currentMove = this.moves[this.currentMoveIndex];
+      if (this.currentMovement.timeElapsed >= (currentMove.duration || 60)) {
+        this.finishCurrentMovement();
+      }
+    }
+  }
+
+  finishCurrentMovement() {
+    if (this.currentMovement) {
+      this.currentMovement.stop();
+    }
+    
+    this.currentMoveIndex++;
+    
+    // Check if combo is complete
+    if (this.currentMoveIndex >= this.moves.length) {
+      this.comboComplete = true;
+      this.isActive = false;
+      return;
+    }
+    
+    // Set transition delay for next movement
+    const nextMove = this.moves[this.currentMoveIndex];
+    this.transitionDelay = nextMove.delay || 0;
+    this.transitionTimer = this.transitionDelay;
+    
+    // Start next movement if no delay
+    if (this.transitionDelay === 0) {
+      this.startNextMovement();
+    } else {
+      // Schedule next movement
+      setTimeout(() => this.startNextMovement(), this.transitionDelay * 16.67); // ~60fps timing
+    }
+  }
+
+  startNextMovement() {
+    if (this.currentMoveIndex >= this.moves.length) return;
+    
+    const move = this.moves[this.currentMoveIndex];
+    const mergedParams = { ...move.params, ...this.customParams[move.pattern] || {} };
+    
+    this.currentMovement = new Movement(this.entity, move.pattern, mergedParams);
+  }
+
+  // Control methods
+  pause() {
+    this.isPaused = true;
+    if (this.currentMovement) {
+      this.currentMovement.isActive = false;
+    }
+  }
+
+  resume() {
+    this.isPaused = false;
+    if (this.currentMovement) {
+      this.currentMovement.isActive = true;
+    }
+  }
+
+  stop() {
+    this.isActive = false;
+    if (this.currentMovement) {
+      this.currentMovement.stop();
+    }
+  }
+
+  restart() {
+    this.currentMoveIndex = 0;
+    this.currentMovement = null;
+    this.isActive = true;
+    this.isPaused = false;
+    this.comboComplete = false;
+    this.transitionTimer = 0;
+    this.skippedMoves = []; // Reset skipped moves tracking
+    this.startNextMovement();
+  }
+
+  // Get current combo progress
+  getProgress() {
+    const totalMoves = this.moves.length;
+    const skippedCount = this.skippedMoves.length;
+    const executedMoves = this.currentMoveIndex + 1 - skippedCount;
+    
+    return {
+      currentMove: this.currentMoveIndex + 1,
+      totalMoves: totalMoves,
+      executedMoves: executedMoves,
+      skippedMoves: skippedCount,
+      currentPattern: this.moves[this.currentMoveIndex]?.pattern || null,
+      percentage: ((this.currentMoveIndex + 1) / totalMoves) * 100,
+      isComplete: this.comboComplete,
+      skipHistory: [...this.skippedMoves] // Copy of skipped moves
+    };
+  }
+
+  // Get skip statistics
+  getSkipStats() {
+    return {
+      totalSkips: this.skippedMoves.length,
+      skipRate: this.skippedMoves.length / this.moves.length,
+      skippedPatterns: this.skippedMoves.map(skip => skip.pattern),
+      currentSkipChance: this.skipChance
+    };
+  }
+
+  // Adjust skip probability during gameplay
+  setSkipChance(newChance) {
+    this.skipChance = Math.max(0, Math.min(1, newChance)); // Clamp between 0-1
+  }
+
+  // Interrupt combo and switch to new one
+  switchToCombo(newComboName, customParams = {}) {
+    this.stop();
+    this.comboName = newComboName;
+    this.customParams = customParams;
+    this.moves = this.getComboSequence(newComboName);
+    this.restart();
+  }
+}
